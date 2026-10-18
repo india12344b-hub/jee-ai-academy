@@ -35,6 +35,7 @@ function App(){
    try{
     d=JSON.parse(responseText);
    }catch{
+    if(r.status===404)throw Error('Chat endpoint not found (HTTP 404). Confirm Cloudflare Pages deployed the current functions/api/chat.js Function.');
     throw Error(responseText.trim()?`Chat service returned an invalid response (HTTP ${r.status}).`:`Chat service returned an empty response (HTTP ${r.status}). Please try again.`);
    }
    if(!r.ok)throw Error(d.error||`Request failed (${r.status})`);
