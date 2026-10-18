@@ -14,9 +14,15 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const SYSTEM = `You are an expert JEE Main and Advanced tutor. Always write the complete teaching answer in English, regardless of the student's selected spoken-language preference. Teach patiently and accurately. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided.`;
+const SYSTEM = `You are an expert JEE Main and Advanced tutor. Always write the complete teaching answer in English, regardless of the student's selected spoken-language preference. Teach patiently and accurately. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. When useful and supported by the question, organize the response with clear headings such as Concept Overview, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided.`;
 const NOTES_STORAGE_KEY = 'jee-ai-academy-notes-v1';
 const VOICE_STORAGE_KEY = 'jee-ai-academy-voice-language-v1';
+const LESSONS_STORAGE_KEY = 'jee-ai-academy-lessons-v1';
+const SUBJECTS = [
+  { name: 'Physics', code: '01', topics: 'Mechanics · Electricity · Optics' },
+  { name: 'Chemistry', code: '02', topics: 'Physical · Organic · Inorganic' },
+  { name: 'Mathematics', code: '03', topics: 'Algebra · Calculus · Coordinate geometry' },
+];
 const speechMathCommands = [
   'frac',
   'sqrt',
@@ -58,6 +64,22 @@ function readSavedNotes() {
         typeof note.id === 'string' &&
         typeof note.answer === 'string' &&
         typeof note.createdAt === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+function readSavedLessons() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(LESSONS_STORAGE_KEY) || '[]');
+    if (!Array.isArray(stored)) return [];
+    return stored.filter(
+      (lesson) =>
+        lesson &&
+        typeof lesson.id === 'string' &&
+        typeof lesson.title === 'string' &&
+        Array.isArray(lesson.messages),
     );
   } catch {
     return [];
@@ -130,13 +152,7 @@ function App() {
   const [pages, setPages] = useState([]);
   const [page, setPage] = useState(1);
   const [reading, setReading] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: createId(),
-      role: 'assistant',
-      content: 'Welcome, Captain! Upload a JEE textbook PDF, choose a page, and ask me to teach a topic. 🎓',
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
@@ -151,10 +167,16 @@ function App() {
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [notesError, setNotesError] = useState('');
   const [savedNoteId, setSavedNoteId] = useState(null);
+  const [lessons, setLessons] = useState(readSavedLessons);
+  const [activeLessonId, setActiveLessonId] = useState(null);
+  const [activeView, setActiveView] = useState('home');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const bottom = useRef(null);
   const recognition = useRef(null);
   const playback = useRef(null);
   const speechRequest = useRef(0);
+  const pdfInput = useRef(null);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth' });
@@ -318,13 +340,9 @@ function App() {
       setPages(extractedPages);
       setPage(1);
       setPdf(file.name);
-      setMessages([
-        {
-          id: createId(),
-          role: 'assistant',
-          content: `Loaded **${file.name}** (${extractedPages.length} pages). Choose a page and ask me to explain it. Scanned PDFs may need OCR.`,
-        },
-      ]);
+      setActiveLessonId(null);
+      setMessages([]);
+      setActiveView('pdf');
     } catch (uploadError) {
       setError(`Could not read PDF: ${uploadError.message}`);
     } finally {
@@ -371,14 +389,18 @@ function App() {
     }
   }
 
-  async function send(question = input) {
+  async function send(question = input, startFresh = false) {
     if (!question.trim() || loading) return;
     stopSpeech();
     setError('');
     setSavedNoteId(null);
     const userMessage = { id: createId(), role: 'user', content: question.trim() };
-    const nextMessages = [...messages, userMessage];
+    const previousMessages = startFresh ? [] : messages;
+    const lessonId = startFresh ? createId() : activeLessonId || createId();
+    const nextMessages = [...previousMessages, userMessage];
     setMessages(nextMessages);
+    setActiveLessonId(lessonId);
+    setActiveView('lesson');
     setInput('');
     setLoading(true);
     try {
@@ -400,7 +422,30 @@ function App() {
         content: result.answer || 'No answer received.',
         question: userMessage.content,
       };
-      setMessages([...nextMessages, assistantMessage]);
+      const lessonMessages = [...nextMessages, assistantMessage];
+      setMessages(lessonMessages);
+      setLessons((currentLessons) => {
+        const existingLesson = currentLessons.find((lesson) => lesson.id === lessonId);
+        const firstQuestion =
+          existingLesson?.title || lessonMessages.find((message) => message.role === 'user')?.content;
+        const updatedLesson = {
+          id: lessonId,
+          title: titleForNote(firstQuestion, assistantMessage.content),
+          subject: existingLesson?.subject || selectedSubject || 'JEE',
+          updatedAt: new Date().toISOString(),
+          messages: lessonMessages,
+        };
+        const updatedLessons = [
+          updatedLesson,
+          ...currentLessons.filter((lesson) => lesson.id !== lessonId),
+        ].slice(0, 24);
+        try {
+          localStorage.setItem(LESSONS_STORAGE_KEY, JSON.stringify(updatedLessons));
+        } catch {
+          setError('Lesson is available until you leave this page, but could not be saved to recent lessons.');
+        }
+        return updatedLessons;
+      });
     } catch (chatError) {
       setError(chatError.message);
     } finally {
@@ -464,187 +509,304 @@ function App() {
     }
   }
 
+  function openLesson(lesson) {
+    stopSpeech();
+    setMessages(lesson.messages);
+    setActiveLessonId(lesson.id);
+    setSelectedSubject(lesson.subject === 'JEE' ? '' : lesson.subject);
+    setActiveView('lesson');
+    setError('');
+  }
+
+  function startNewLesson(subject = '') {
+    stopSpeech();
+    setMessages([]);
+    setActiveLessonId(null);
+    setSelectedSubject(subject);
+    setInput('');
+    setError('');
+    setActiveView('lesson');
+  }
+
+  function beginSubject(subject) {
+    startNewLesson(subject);
+  }
+
+  function openHome() {
+    stopSpeech();
+    setActiveView('home');
+    setError('');
+  }
+
   const selectedNote = notes.find((note) => note.id === selectedNoteId);
   const savedMessageIds = new Set(notes.map((note) => note.messageId));
+  const activeLesson = lessons.find((lesson) => lesson.id === activeLessonId);
+  const recentLessons = lessons.slice(0, 3);
+  const showHome = activeView === 'home';
 
   return (
-    <div className="app">
-      <header>
-        <div className="brand">
-          🎓 JEE <span>AI Academy</span>
-        </div>
+    <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <header className="topbar">
+        <button
+          className="sidebar-toggle"
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+        >
+          ☰
+        </button>
+        <button className="brand" onClick={openHome} aria-label="JEE AI Academy home">
+          <span className="brand-mark">J</span>
+          <span>JEE <b>AI Academy</b></span>
+        </button>
         <div className="header-actions">
-          <button className="secondary notes-open" onClick={() => setNotesOpen(true)}>
-            My Notes <span className="notes-count">{notes.length}</span>
+          <span className="tag">PERSONAL JEE COACH</span>
+          <button className="profile-button" onClick={() => setActiveView('settings')} aria-label="Open settings">
+            Student
           </button>
-          <span className="tag">GPT-OSS 120B · Groq</span>
         </div>
       </header>
-      <div className="layout">
-        <aside>
-          <h2>📚 Textbook</h2>
-          <label className="upload">
-            {reading ? 'Reading PDF...' : '＋ Upload PDF'}
-            <input type="file" accept="application/pdf" onChange={upload} disabled={reading} />
-          </label>
-          {pdf && (
-            <>
-              <p className="filename">{pdf}</p>
-              <p className="muted">{pages.length} pages · text extracted in browser</p>
-              <label className="field">
-                Page{' '}
+      <div className="workspace-shell">
+        <aside className="sidebar">
+          <button className="new-lesson-button" onClick={() => startNewLesson()}>
+            <span>＋</span> New lesson
+          </button>
+          <nav className="primary-nav" aria-label="Main navigation">
+            <button className={showHome ? 'active' : ''} onClick={openHome}><span>⌂</span> Home</button>
+            <button className={activeView === 'subjects' ? 'active' : ''} onClick={() => setActiveView('subjects')}><span>▦</span> Learn / Subjects</button>
+            <button onClick={() => setNotesOpen(true)}><span>▤</span> My Notes <small>{notes.length}</small></button>
+            <button className={activeView === 'pdf' ? 'active' : ''} onClick={() => setActiveView('pdf')}><span>▧</span> PDF Library</button>
+            <button className={activeView === 'practice' ? 'active' : ''} onClick={() => setActiveView('practice')}><span>✳</span> Practice</button>
+            <button className={activeView === 'recent' ? 'active' : ''} onClick={() => setActiveView('recent')}><span>◷</span> Recent Lessons</button>
+            <button className={activeView === 'settings' ? 'active' : ''} onClick={() => setActiveView('settings')}><span>⚙</span> Settings</button>
+          </nav>
+          <div className="sidebar-divider" />
+          <section className="textbook-card" aria-label="PDF textbook">
+            <div className="section-eyebrow">YOUR LIBRARY</div>
+            <h2>Study material</h2>
+            <button className="upload" onClick={() => pdfInput.current?.click()} disabled={reading}>
+              {reading ? 'Reading PDF…' : '＋ Upload PDF'}
+            </button>
+            <input
+              ref={pdfInput}
+              id="pdf-upload-input"
+              className="hidden-pdf-input"
+              type="file"
+              accept="application/pdf"
+              onChange={upload}
+              disabled={reading}
+            />
+            {pdf ? (
+              <>
+                <p className="filename">{pdf}</p>
+                <p className="muted">{pages.length} pages · text extracted in browser</p>
+                <label className="field">
+                  Page
+                  <input
+                    type="number"
+                    min="1"
+                    max={pages.length}
+                    value={page}
+                    onChange={(event) =>
+                      setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))
+                    }
+                  />
+                </label>
                 <input
-                  type="number"
+                  type="range"
                   min="1"
                   max={pages.length}
                   value={page}
-                  onChange={(event) =>
-                    setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))
-                  }
+                  onChange={(event) => setPage(Number(event.target.value))}
+                  aria-label="Select textbook page"
                 />
-              </label>
-              <input
-                type="range"
-                min="1"
-                max={pages.length}
-                value={page}
-                onChange={(event) => setPage(Number(event.target.value))}
-                aria-label="Select textbook page"
-              />
-              <div className="preview">
-                {pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}
-              </div>
-            </>
-          )}
-          <div className="help">
-            <b>How to study</b>
-            <p>Choose a page and ask “Teach this concept from basics for JEE Advanced.”</p>
-            <p>Only relevant excerpts are sent to the AI.</p>
+                <div className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</div>
+              </>
+            ) : <p className="muted">Add a textbook to discuss its pages with your teacher.</p>}
+          </section>
+          <div className="sidebar-footer">
+            <span className="online-dot" /> AI tutor ready
           </div>
         </aside>
-        <main>
-          <div className="chat-head">
-            <div>
-              <h1>AI JEE Teacher</h1>
-              <p>Concepts · Derivations · Doubts · Practice</p>
-            </div>
-            <button
-              className="secondary"
-              onClick={() => {
-                stopSpeech();
-                setMessages([
-                  { id: createId(), role: 'assistant', content: 'New lesson started. What shall we learn?' },
-                ]);
-                setError('');
-              }}
-            >
-              New lesson
-            </button>
-          </div>
-          <div className="messages">
-            {messages.map((message) => {
-              const saved = savedMessageIds.has(message.id);
-              const wordCount = message.role === 'assistant' ? markdownWordCount(message.content) : 0;
-              return (
-                <article key={message.id} className={`message ${message.role}`}>
-                  <div className="who">{message.role === 'assistant' ? '🎓 Teacher' : '👤 You'}</div>
-                  <Markdown>{message.content}</Markdown>
-                  {message.role === 'assistant' && (
-                    <div className="message-actions">
-                      {activeSpeechId === message.id ? (
-                        <>
-                          <button
-                            className="message-action"
-                            onClick={speechPaused ? resumeSpeech : pauseSpeech}
-                            aria-label={speechPaused ? 'Resume reading answer' : 'Pause reading answer'}
-                          >
-                            {speechPaused ? '▶ Resume' : '⏸ Pause'}
-                          </button>
-                          <button className="message-action" onClick={stopSpeech}>
-                            ■ Stop
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="message-action"
-                          onClick={() => playAnswer(message)}
-                          disabled={speechLoadingId === message.id}
-                        >
-                          {speechLoadingId === message.id
-                            ? 'Preparing speech...'
-                            : `▶ Play ${voiceLanguage === 'hinglish' ? 'Hinglish' : 'English'}`}
-                        </button>
-                      )}
-                      {wordCount > 200 && (
-                        <button
-                          className="message-action"
-                          onClick={() => downloadPdf(message)}
-                        >
-                          ⬇ Download PDF
-                        </button>
-                      )}
-                      <button
-                        className="message-action"
-                        onClick={() => saveNote(message)}
-                        disabled={saved}
-                        aria-label={saved ? 'Answer saved to My Notes' : 'Save answer to My Notes'}
-                      >
-                        {saved || savedNoteId === message.id ? '✓ Saved' : '☆ Save to My Notes'}
+        <main className="main-panel">
+          {showHome ? (
+            <div className="dashboard-content">
+              <div className="welcome-row">
+                <div>
+                  <div className="section-eyebrow">YOUR PERSONAL JEE CLASSROOM</div>
+                  <h1>What shall we master today?</h1>
+                  <p>Build understanding, one clear idea at a time.</p>
+                </div>
+                <div className="study-streak"><span>✦</span><div><b>Made for JEE</b><small>Main · Advanced · You</small></div></div>
+              </div>
+              <section className="subject-grid" aria-label="Choose a subject">
+                {SUBJECTS.map((subject) => (
+                  <button
+                    className={`subject-card subject-${subject.name.toLowerCase()} ${selectedSubject === subject.name ? 'selected' : ''}`}
+                    key={subject.name}
+                    onClick={() => {
+                      setSelectedSubject(subject.name);
+                      setActiveView('subjects');
+                    }}
+                  >
+                    <span className="subject-code">{subject.code} / JEE</span>
+                    <span className="subject-symbol">{subject.name === 'Physics' ? 'Φ' : subject.name === 'Chemistry' ? '⌬' : '∑'}</span>
+                    <strong>{subject.name}</strong>
+                    <small>{subject.topics}</small>
+                    <span className="subject-arrow">Explore ↗</span>
+                  </button>
+                ))}
+              </section>
+              <section className="ask-panel">
+                <div className="ask-panel-title">
+                  <div><span className="teacher-avatar">✦</span><div><h2>Ask your AI Teacher</h2><p>Get a clear, step-by-step explanation tailored to your level.</p></div></div>
+                  <span className="english-note">Written lessons in English</span>
+                </div>
+                <div className="ask-composer">
+                  <textarea
+                    placeholder={selectedSubject ? `Ask a ${selectedSubject} question…` : 'What concept or problem are you working on?'}
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        send(input, true);
+                      }
+                    }}
+                    aria-label="Ask your AI Teacher"
+                  />
+                  <div className="ask-composer-actions">
+                    <div className="ask-quick-actions">
+                      <button onClick={() => pdfInput.current?.click()}>＋ Upload PDF</button>
+                      <button onClick={() => { startNewLesson(selectedSubject); setInput('Give me a JEE practice question with a guided solution on '); }}>✳ Practice Questions</button>
+                      <button onClick={() => { startNewLesson(selectedSubject); setInput('Create a concise formula sheet for '); }}>∑ Formula Sheets</button>
+                    </div>
+                    <div className="ask-submit">
+                      <button className={listening ? 'recording' : 'mic-button'} onClick={listen} aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}>
+                        {listening ? '■' : '◉'}
+                      </button>
+                      <button className="send-button" disabled={loading || !input.trim()} onClick={() => send(input, true)}>
+                        {loading ? 'Thinking…' : 'Start learning'} <span>→</span>
                       </button>
                     </div>
+                  </div>
+                </div>
+                {error && <div className="error dashboard-error" role="alert">{error}</div>}
+              </section>
+              <div className="dashboard-lower-grid">
+                <section className="dashboard-section continue-section">
+                  <div className="section-heading"><div><div className="section-eyebrow">PICK UP WHERE YOU LEFT OFF</div><h2>Continue learning</h2></div>
+                    {recentLessons.length > 0 && <button className="text-link" onClick={() => setActiveView('recent')}>View all →</button>}
+                  </div>
+                  {recentLessons[0] ? (
+                    <button className="continue-card" onClick={() => openLesson(recentLessons[0])}>
+                      <span className="continue-icon">↗</span><span className="continue-copy"><small>{recentLessons[0].subject} · LAST STUDIED {new Date(recentLessons[0].updatedAt).toLocaleDateString()}</small><strong>{recentLessons[0].title}</strong><span>Resume lesson <b>→</b></span></span>
+                    </button>
+                  ) : (
+                    <button className="continue-card empty-continue" onClick={() => startNewLesson()}>
+                      <span className="continue-icon">✦</span><span className="continue-copy"><small>YOUR NEXT BREAKTHROUGH STARTS HERE</small><strong>Start your first lesson</strong><span>Choose a subject or ask a question <b>→</b></span></span>
+                    </button>
                   )}
-                </article>
-              );
-            })}
-            {loading && <div className="message assistant">Thinking through your JEE doubt…</div>}
-            <div ref={bottom} />
-          </div>
-          {error && (
-            <div className="error" role="alert">
-              {error}
+                </section>
+                <section className="dashboard-section recent-section">
+                  <div className="section-heading"><div><div className="section-eyebrow">YOUR STUDY HISTORY</div><h2>Recent lessons</h2></div>
+                    <button className="text-link" onClick={() => setActiveView('recent')}>See all →</button>
+                  </div>
+                  {recentLessons.length ? recentLessons.slice(0, 2).map((lesson) => (
+                    <button className="recent-lesson-row" key={lesson.id} onClick={() => openLesson(lesson)}>
+                      <span className="recent-subject-icon">{lesson.subject === 'Physics' ? 'Φ' : lesson.subject === 'Chemistry' ? '⌬' : '∑'}</span>
+                      <span><strong>{lesson.title}</strong><small>{lesson.subject} · {new Date(lesson.updatedAt).toLocaleDateString()}</small></span><b>↗</b>
+                    </button>
+                  )) : <p className="empty-copy">Your lessons will appear here as you study.</p>}
+                </section>
+              </div>
+              <section className="dashboard-section notes-preview-section">
+                <div className="section-heading"><div><div className="section-eyebrow">SAVED FOR LATER</div><h2>My Notes</h2></div>
+                  <button className="text-link" onClick={() => setNotesOpen(true)}>Open notes →</button>
+                </div>
+                {notes.length ? <div className="notes-preview-grid">{notes.slice(0, 3).map((note) => (
+                  <button className="note-preview-card" key={note.id} onClick={() => { setSelectedNoteId(note.id); setNotesOpen(true); }}>
+                    <span>▤</span><strong>{note.title}</strong><small>{safeDate(note.createdAt)}</small>
+                  </button>
+                ))}</div> : <p className="empty-copy">Save a teacher’s explanation to build your personal revision library.</p>}
+              </section>
+            </div>
+          ) : activeView === 'lesson' ? (
+            <div className="lesson-page">
+              <div className="lesson-topline">
+                <button className="breadcrumb-button" onClick={openHome}>← Home</button><span>/</span><span>{selectedSubject || activeLesson?.subject || 'JEE Lesson'}</span>
+                <button className="new-lesson-inline" onClick={() => startNewLesson(selectedSubject)}>＋ New lesson</button>
+              </div>
+              <div className="lesson-heading">
+                <div className="section-eyebrow">{selectedSubject || activeLesson?.subject || 'PERSONAL TUTORING'} · CONCEPT LESSON</div>
+                <h1>{activeLesson?.title || messages.find((message) => message.role === 'user')?.content || 'Your learning workspace'}</h1>
+                <p>Explore the idea, work through the reasoning, and ask whenever you need clarity.</p>
+              </div>
+              <div className="lesson-toolbar">
+                <label className="voice-language">
+                  <span>Listen to lesson</span>
+                  <select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }} aria-label="Spoken explanation language">
+                    <option value="english">English</option><option value="hinglish">Hinglish</option>
+                  </select>
+                </label>
+                <span className="written-language-note">Written lesson stays in English</span>
+              </div>
+              <div className="lesson-scroll">
+                {messages.map((message) => {
+                  if (message.role === 'user') {
+                    return <div key={message.id} className="question-marker"><span>YOUR QUESTION</span><p>{message.content}</p></div>;
+                  }
+                  const saved = savedMessageIds.has(message.id);
+                  const wordCount = markdownWordCount(message.content);
+                  return (
+                    <article key={message.id} className="lesson-answer">
+                      <div className="lesson-answer-label"><span className="teacher-avatar">✦</span><div><strong>Your AI Teacher</strong><small>JEE-focused explanation</small></div></div>
+                      <Markdown>{message.content}</Markdown>
+                      <div className="message-actions">
+                        {activeSpeechId === message.id ? (
+                          <>
+                            <button className="message-action" onClick={speechPaused ? resumeSpeech : pauseSpeech} aria-label={speechPaused ? 'Resume reading answer' : 'Pause reading answer'}>
+                              {speechPaused ? '▶ Resume' : '⏸ Pause'}
+                            </button>
+                            <button className="message-action" onClick={stopSpeech}>■ Stop</button>
+                          </>
+                        ) : (
+                          <button className="message-action" onClick={() => playAnswer(message)} disabled={speechLoadingId === message.id}>
+                            {speechLoadingId === message.id ? 'Preparing speech…' : `▶ Listen · ${voiceLanguage === 'hinglish' ? 'Hinglish' : 'English'}`}
+                          </button>
+                        )}
+                        {wordCount > 200 && <button className="message-action" onClick={() => downloadPdf(message)}>↓ Download PDF</button>}
+                        <button className="message-action" onClick={() => saveNote(message)} disabled={saved} aria-label={saved ? 'Answer saved to My Notes' : 'Save answer to My Notes'}>
+                          {saved || savedNoteId === message.id ? '✓ Saved to My Notes' : '☆ Save to My Notes'}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+                {loading && <div className="teaching-state"><span className="loading-indicator" /> Organizing a clear, step-by-step lesson…</div>}
+                {!messages.length && !loading && <div className="lesson-empty-state"><span className="teacher-avatar">✦</span><h2>What would you like to understand?</h2><p>Ask a question to begin. Your lesson and follow-ups stay together here.</p></div>}
+                <div ref={bottom} />
+              </div>
+              {error && <div className="error lesson-error" role="alert">{error}</div>}
+              <div className="followup-composer">
+                <label htmlFor="followup-input">Ask a follow-up question</label>
+                <div className="followup-row">
+                  <button className={listening ? 'recording' : 'mic-button'} onClick={listen} aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}>{listening ? '■' : '◉'}</button>
+                  <textarea id="followup-input" placeholder="Ask for another example, a simpler explanation, or a derivation…" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} />
+                  <button className="send-button" disabled={loading || !input.trim()} onClick={() => send()}>Ask <span>→</span></button>
+                </div>
+                <small>AI can make mistakes. Verify important formulas and solutions.</small>
+              </div>
+            </div>
+          ) : (
+            <div className="dashboard-content secondary-view">
+              <div className="welcome-row"><div><div className="section-eyebrow">JEE AI ACADEMY</div><h1>{activeView === 'subjects' ? 'Choose your subject' : activeView === 'recent' ? 'Recent lessons' : activeView === 'pdf' ? 'PDF Library' : activeView === 'practice' ? 'Practice with purpose' : 'Learning preferences'}</h1><p>{activeView === 'settings' ? 'Make your learning workspace feel right for you.' : 'A focused space to keep your preparation moving.'}</p></div></div>
+              {activeView === 'subjects' && <section className="subject-grid secondary-subject-grid">{SUBJECTS.map((subject) => <button className={`subject-card subject-${subject.name.toLowerCase()} ${selectedSubject === subject.name ? 'selected' : ''}`} key={subject.name} onClick={() => beginSubject(subject.name)}><span className="subject-code">{subject.code} / JEE</span><span className="subject-symbol">{subject.name === 'Physics' ? 'Φ' : subject.name === 'Chemistry' ? '⌬' : '∑'}</span><strong>{subject.name}</strong><small>{subject.topics}</small><span className="subject-arrow">Start a lesson ↗</span></button>)}</section>}
+              {activeView === 'recent' && <section className="dashboard-section full-section">{lessons.length ? lessons.map((lesson) => <button className="recent-lesson-row" key={lesson.id} onClick={() => openLesson(lesson)}><span className="recent-subject-icon">{lesson.subject === 'Physics' ? 'Φ' : lesson.subject === 'Chemistry' ? '⌬' : '∑'}</span><span><strong>{lesson.title}</strong><small>{lesson.subject} · {new Date(lesson.updatedAt).toLocaleString()}</small></span><b>Open lesson →</b></button>) : <p className="empty-copy">No lessons yet. Choose a subject or ask your AI Teacher to begin.</p>}</section>}
+              {activeView === 'pdf' && <section className="dashboard-section full-section pdf-library-card"><div className="library-icon">▧</div><div><h2>{pdf || 'Add a textbook or study guide'}</h2><p>{pdf ? `${pages.length} pages extracted. Your teacher can now reference the selected page in explanations.` : 'Upload a PDF to discuss its content with your AI Teacher. Text extraction happens in your browser.'}</p></div><button className="send-button" onClick={() => pdfInput.current?.click()} disabled={reading}>{reading ? 'Reading PDF…' : pdf ? 'Choose another PDF' : '＋ Upload a PDF'}</button>{pdf && <div className="library-page-control"><label htmlFor="library-page">Selected page</label><input id="library-page" type="number" min="1" max={pages.length} value={page} onChange={(event) => setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))} /><p className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</p></div>}</section>}
+              {activeView === 'practice' && <section className="dashboard-section full-section practice-card"><div className="practice-mark">✳</div><h2>Turn practice into progress</h2><p>Ask for a JEE-level problem, a hint-first walkthrough, or a timed mini set on any topic.</p><button className="send-button" onClick={() => { setInput('Give me a JEE practice question with a guided solution on '); setActiveView('lesson'); }}>Create a practice lesson <span>→</span></button></section>}
+              {activeView === 'settings' && <section className="dashboard-section full-section settings-card"><h2>Spoken lesson language</h2><p>Choose the language your teacher uses when you press Listen. Written answers always stay in English.</p><label className="voice-language"><span>Voice language</span><select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }}><option value="english">English</option><option value="hinglish">Hinglish</option></select></label></section>}
             </div>
           )}
-          <div className="composer">
-            <label className="voice-language">
-              <span>Spoken explanation</span>
-              <select
-                value={voiceLanguage}
-                onChange={(event) => {
-                  stopSpeech();
-                  setVoiceLanguage(event.target.value);
-                }}
-              >
-                <option value="english">English</option>
-                <option value="hinglish">Hinglish</option>
-              </select>
-              <span className="muted">Written answers always stay in English.</span>
-            </label>
-            <div className="sendrow">
-              <button
-                className={listening ? 'recording' : 'secondary'}
-                onClick={listen}
-                aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}
-              >
-                {listening ? '⏹ Stop' : '🎙️ Speak'}
-              </button>
-              <textarea
-                placeholder="Ask your doubt or request a derivation..."
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    send();
-                  }
-                }}
-                aria-label="Ask a JEE question"
-              />
-              <button disabled={loading || !input.trim()} onClick={() => send()}>
-                Send ➤
-              </button>
-            </div>
-            <small>AI can make mistakes. Verify important formulas and solutions.</small>
-          </div>
         </main>
       </div>
       {notesOpen && (
