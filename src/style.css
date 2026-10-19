@@ -536,17 +536,17 @@ main {
 /* Learning workspace */
 :root {
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
-  color: #1a2941;
-  background: #f5f7fa;
+  color: #dce5f4;
+  background: #0b1220;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --navy: #142744;
-  --ink: #1a2941;
-  --muted-ink: #738198;
-  --accent: #376bd5;
-  --line: #e5eaf1;
-  --paper: #fff;
-  --canvas: #f5f7fa;
+  --navy: #e5edfb;
+  --ink: #dce5f4;
+  --muted-ink: #a3b1c8;
+  --accent: #8298ff;
+  --line: #2b3850;
+  --paper: #141f32;
+  --canvas: #0b1220;
 }
 
 body {
@@ -1799,6 +1799,10 @@ input:focus-visible {
   margin-top: 19px;
 }
 
+.settings-card .settings-subheading {
+  margin-top: 28px;
+}
+
 .notes-backdrop {
   z-index: 8;
   background: rgb(14 26 44 / 45%);
@@ -2197,5 +2201,321 @@ input:focus-visible {
 
   .notes-panel {
     padding: 18px 15px;
+  }
+}
+
+.app[data-theme='light'] {
+  color-scheme: light;
+  --navy: #142744;
+  --ink: #1a2941;
+  --muted-ink: #738198;
+  --accent: #376bd5;
+  --line: #e5eaf1;
+  --paper: #fff;
+  --canvas: #f5f7fa;
+}
+
+.app[data-theme='light'] {
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+.app[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+.app .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.app .theme-toggle span {
+  font-size: 15px;
+}
+
+.app :is(
+  .section-eyebrow,
+  .tag,
+  .study-streak b,
+  .study-streak small,
+  .ask-panel-title p,
+  .english-note,
+  .ask-quick-actions button,
+  .send-button,
+  .text-link,
+  .continue-copy small,
+  .continue-copy strong,
+  .continue-copy > span,
+  .recent-lesson-row strong,
+  .recent-lesson-row small,
+  .recent-lesson-row > b,
+  .empty-copy,
+  .note-preview-card strong,
+  .note-preview-card small,
+  .lesson-topline,
+  .breadcrumb-button,
+  .new-lesson-inline,
+  .lesson-heading p,
+  .voice-language,
+  .written-language-note,
+  .question-marker span,
+  .lesson-answer-label strong,
+  .lesson-answer-label small,
+  .lesson-answer .message-action,
+  .followup-composer > label,
+  .followup-row textarea,
+  .followup-composer > small,
+  .pdf-library-card p,
+  .settings-card p,
+  .practice-card p,
+  .library-page-control label,
+  .sidebar-footer,
+  .sidebar .muted,
+  .textbook-card .filename,
+  .textbook-card .field,
+  .textbook-card .preview
+) {
+  font-size: 12px;
+}
+
+.app .section-eyebrow {
+  font-size: 11px;
+}
+
+.app .subject-card small {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.app[data-theme='dark'] .subject-card small {
+  font-size: 14px;
+}
+
+.app .subject-code {
+  font-size: 12px;
+}
+
+.app .subject-arrow {
+  font-size: 13px;
+}
+
+.app[data-theme='dark'] .topbar,
+.app[data-theme='dark'] .sidebar,
+.app[data-theme='dark'] .study-streak,
+.app[data-theme='dark'] .subject-card,
+.app[data-theme='dark'] .ask-panel,
+.app[data-theme='dark'] .ask-composer,
+.app[data-theme='dark'] .mic-button,
+.app[data-theme='dark'] .new-lesson-inline,
+.app[data-theme='dark'] .full-section,
+.app[data-theme='dark'] .continue-card,
+.app[data-theme='dark'] .note-preview-card,
+.app[data-theme='dark'] .notes-panel,
+.app[data-theme='dark'] .followup-row textarea,
+.app[data-theme='dark'] .voice-language select,
+.app[data-theme='dark'] .library-page-control input,
+.app[data-theme='dark'] .textbook-card {
+  background: #141f32;
+}
+
+.app[data-theme='dark'] .main-panel,
+.app[data-theme='dark'] .app,
+.app[data-theme='dark'] .workspace-shell {
+  background: var(--canvas);
+}
+
+.app[data-theme='dark'] .topbar,
+.app[data-theme='dark'] .sidebar,
+.app[data-theme='dark'] .study-streak,
+.app[data-theme='dark'] .subject-card,
+.app[data-theme='dark'] .ask-panel,
+.app[data-theme='dark'] .ask-composer,
+.app[data-theme='dark'] .mic-button,
+.app[data-theme='dark'] .new-lesson-inline,
+.app[data-theme='dark'] .continue-card,
+.app[data-theme='dark'] .note-preview-card,
+.app[data-theme='dark'] .full-section,
+.app[data-theme='dark'] .followup-row textarea,
+.app[data-theme='dark'] .voice-language select,
+.app[data-theme='dark'] .library-page-control input,
+.app[data-theme='dark'] .textbook-card,
+.app[data-theme='dark'] .textbook-card .preview,
+.app[data-theme='dark'] .notes-panel,
+.app[data-theme='dark'] .notes-empty,
+.app[data-theme='dark'] .note-select,
+.app[data-theme='dark'] .note-detail {
+  border-color: var(--line);
+}
+
+.app[data-theme='dark'] :is(
+  .brand,
+  .subject-card,
+  .subject-card strong,
+  .ask-panel-title h2,
+  .continue-copy strong,
+  .recent-lesson-row strong,
+  .note-preview-card strong,
+  .section-heading h2,
+  .lesson-heading h1,
+  .lesson-answer,
+  .lesson-answer .markdown,
+  .lesson-answer .markdown h1,
+  .lesson-answer .markdown h2,
+  .lesson-answer .markdown h3,
+  .lesson-answer .markdown h4,
+  .lesson-answer-label strong,
+  .question-marker p,
+  .lesson-empty-state h2,
+  .pdf-library-card h2,
+  .settings-card h2,
+  .practice-card h2,
+  .notes-panel-head h2,
+  .note-select,
+  .note-detail,
+  .note-detail .note-question,
+  .library-page-control input,
+  .followup-row textarea,
+  .ask-composer textarea
+) {
+  color: #dce5f4;
+}
+
+.app[data-theme='dark'] :is(
+  .section-eyebrow,
+  .tag,
+  .welcome-row p,
+  .study-streak small,
+  .subject-code,
+  .subject-card small,
+  .subject-arrow,
+  .ask-panel-title p,
+  .english-note,
+  .text-link,
+  .continue-copy small,
+  .continue-copy > span,
+  .recent-lesson-row small,
+  .recent-lesson-row > b,
+  .empty-copy,
+  .note-preview-card small,
+  .lesson-topline,
+  .breadcrumb-button,
+  .lesson-heading p,
+  .voice-language,
+  .written-language-note,
+  .question-marker span,
+  .lesson-answer-label small,
+  .followup-composer > label,
+  .followup-composer > small,
+  .pdf-library-card p,
+  .settings-card p,
+  .practice-card p,
+  .library-page-control label,
+  .sidebar-footer,
+  .textbook-card .muted,
+  .textbook-card .field,
+  .textbook-card .filename,
+  .textbook-card .preview,
+  .notes-panel .muted,
+  .notes-panel .notes-empty
+) {
+  color: #a3b1c8;
+}
+
+.app[data-theme='dark'] .brand-mark,
+.app[data-theme='dark'] .new-lesson-button {
+  color: #fff;
+  background: #314a78;
+}
+
+.app[data-theme='dark'] .primary-nav button,
+.app[data-theme='dark'] .sidebar-toggle,
+.app[data-theme='dark'] .profile-button,
+.app[data-theme='dark'] .ask-quick-actions button,
+.app[data-theme='dark'] .message-action,
+.app[data-theme='dark'] .notes-panel .secondary {
+  color: #bdcbe2;
+}
+
+.app[data-theme='dark'] .profile-button {
+  border-color: var(--line);
+  background: #1d2a41;
+}
+
+.app[data-theme='dark'] .primary-nav button:hover:not(:disabled),
+.app[data-theme='dark'] .sidebar-toggle:hover:not(:disabled),
+.app[data-theme='dark'] .ask-quick-actions button:hover:not(:disabled),
+.app[data-theme='dark'] .recent-lesson-row:hover:not(:disabled) {
+  background: #1d2a41;
+}
+
+.app[data-theme='dark'] .primary-nav button.active,
+.app[data-theme='dark'] .sidebar-setting.active {
+  border-color: #344767;
+  color: #dce7ff;
+  background: #1c2b45;
+}
+
+.app[data-theme='dark'] .subject-card:hover:not(:disabled),
+.app[data-theme='dark'] .subject-card.selected {
+  border-color: #526a93;
+  background: #19263c;
+}
+
+.app[data-theme='dark'] .teacher-avatar,
+.app[data-theme='dark'] .continue-icon,
+.app[data-theme='dark'] .library-icon,
+.app[data-theme='dark'] .practice-mark,
+.app[data-theme='dark'] .question-marker,
+.app[data-theme='dark'] .lesson-answer .markdown blockquote,
+.app[data-theme='dark'] .lesson-answer .markdown .katex-display,
+.app[data-theme='dark'] .note-detail .note-question,
+.app[data-theme='dark'] .note-select.selected {
+  border-color: #344767;
+  color: #c4d4ef;
+  background: #1b2940;
+}
+
+.app[data-theme='dark'] .ask-composer textarea,
+.app[data-theme='dark'] .ask-composer textarea::placeholder,
+.app[data-theme='dark'] .followup-row textarea::placeholder {
+  color: #dce5f4;
+}
+
+.app[data-theme='dark'] .notes-panel .secondary,
+.app[data-theme='dark'] .note-select,
+.app[data-theme='dark'] .note-detail {
+  background: #141f32;
+}
+
+.app[data-theme='dark'] .note-delete {
+  color: #ffc2c7;
+  background: #492a38;
+}
+
+.app[data-theme='dark'] .clear-notes {
+  color: #ffb8c5;
+}
+
+.app[data-theme='dark'] .error,
+.app[data-theme='dark'] .dashboard-error,
+.app[data-theme='dark'] .lesson-error {
+  border-color: #71414b;
+  color: #ffc2c7;
+  background: #3b2632;
+}
+
+.app[data-theme='dark'] .notes-backdrop {
+  background: rgb(0 0 0 / 68%);
+}
+
+@media (max-width: 700px) {
+  .app .theme-toggle {
+    padding: 7px;
+    font-size: 0;
+  }
+
+  .app .theme-toggle span {
+    font-size: 16px;
   }
 }

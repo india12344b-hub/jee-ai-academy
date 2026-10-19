@@ -18,6 +18,7 @@ const SYSTEM = `You are an expert JEE Main and Advanced tutor. Always write the 
 const NOTES_STORAGE_KEY = 'jee-ai-academy-notes-v1';
 const VOICE_STORAGE_KEY = 'jee-ai-academy-voice-language-v1';
 const LESSONS_STORAGE_KEY = 'jee-ai-academy-lessons-v1';
+const THEME_STORAGE_KEY = 'jee-ai-academy-theme-v1';
 const SUBJECTS = [
   { name: 'Physics', code: '01', topics: 'Mechanics · Electricity · Optics' },
   { name: 'Chemistry', code: '02', topics: 'Physical · Organic · Inorganic' },
@@ -51,6 +52,14 @@ function readVoiceLanguage() {
     return localStorage.getItem(VOICE_STORAGE_KEY) === 'hinglish' ? 'hinglish' : 'english';
   } catch {
     return 'english';
+  }
+}
+
+function readTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
   }
 }
 
@@ -158,6 +167,7 @@ function App() {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState('');
   const [voiceLanguage, setVoiceLanguage] = useState(readVoiceLanguage);
+  const [theme, setTheme] = useState(readTheme);
   const [activeSpeechId, setActiveSpeechId] = useState(null);
   const [speechPaused, setSpeechPaused] = useState(false);
   const [speechLoadingId, setSpeechLoadingId] = useState(null);
@@ -198,6 +208,14 @@ function App() {
       setError('Could not save the voice-language preference in this browser.');
     }
   }, [voiceLanguage]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      setError('Could not save the theme preference in this browser.');
+    }
+  }, [theme]);
 
   function stopSpeech() {
     speechRequest.current += 1;
@@ -545,7 +563,7 @@ function App() {
   const showHome = activeView === 'home';
 
   return (
-    <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-theme={theme}>
       <header className="topbar">
         <button
           className="sidebar-toggle"
@@ -560,6 +578,15 @@ function App() {
         </button>
         <div className="header-actions">
           <span className="tag">PERSONAL JEE COACH</span>
+          <button
+            className="profile-button theme-toggle"
+            onClick={() => setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark')}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
           <button className="profile-button" onClick={() => setActiveView('settings')} aria-label="Open settings">
             Student
           </button>
@@ -804,7 +831,7 @@ function App() {
               {activeView === 'recent' && <section className="dashboard-section full-section">{lessons.length ? lessons.map((lesson) => <button className="recent-lesson-row" key={lesson.id} onClick={() => openLesson(lesson)}><span className="recent-subject-icon">{lesson.subject === 'Physics' ? 'Φ' : lesson.subject === 'Chemistry' ? '⌬' : '∑'}</span><span><strong>{lesson.title}</strong><small>{lesson.subject} · {new Date(lesson.updatedAt).toLocaleString()}</small></span><b>Open lesson →</b></button>) : <p className="empty-copy">No lessons yet. Choose a subject or ask your AI Teacher to begin.</p>}</section>}
               {activeView === 'pdf' && <section className="dashboard-section full-section pdf-library-card"><div className="library-icon">▧</div><div><h2>{pdf || 'Add a textbook or study guide'}</h2><p>{pdf ? `${pages.length} pages extracted. Your teacher can now reference the selected page in explanations.` : 'Upload a PDF to discuss its content with your AI Teacher. Text extraction happens in your browser.'}</p></div><button className="send-button" onClick={() => pdfInput.current?.click()} disabled={reading}>{reading ? 'Reading PDF…' : pdf ? 'Choose another PDF' : '＋ Upload a PDF'}</button>{pdf && <div className="library-page-control"><label htmlFor="library-page">Selected page</label><input id="library-page" type="number" min="1" max={pages.length} value={page} onChange={(event) => setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))} /><p className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</p></div>}</section>}
               {activeView === 'practice' && <section className="dashboard-section full-section practice-card"><div className="practice-mark">✳</div><h2>Turn practice into progress</h2><p>Ask for a JEE-level problem, a hint-first walkthrough, or a timed mini set on any topic.</p><button className="send-button" onClick={() => { setInput('Give me a JEE practice question with a guided solution on '); setActiveView('lesson'); }}>Create a practice lesson <span>→</span></button></section>}
-              {activeView === 'settings' && <section className="dashboard-section full-section settings-card"><h2>Spoken lesson language</h2><p>Choose the language your teacher uses when you press Listen. Written answers always stay in English.</p><label className="voice-language"><span>Voice language</span><select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }}><option value="english">English</option><option value="hinglish">Hinglish</option></select></label></section>}
+              {activeView === 'settings' && <section className="dashboard-section full-section settings-card"><h2>Appearance</h2><p>Choose the theme for your learning workspace.</p><label className="voice-language"><span>Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="dark">Dark</option><option value="light">Light</option></select></label><h2 className="settings-subheading">Spoken lesson language</h2><p>Choose the language your teacher uses when you press Listen. Written answers always stay in English.</p><label className="voice-language"><span>Voice language</span><select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }}><option value="english">English</option><option value="hinglish">Hinglish</option></select></label></section>}
             </div>
           )}
         </main>
