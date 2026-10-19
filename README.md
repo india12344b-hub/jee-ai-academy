@@ -19,3 +19,15 @@ Never commit your Groq API key to GitHub.
 - Assistant answers use Markdown and KaTeX for inline math and display derivations. Answers wrapped in clear formula-style parentheses are also recognized without interpreting ordinary prose or code as math.
 - Choose English or Hinglish under **Spoken explanation**. Written answers stay in English; Hinglish speech is generated only when the user presses Play. Speech-language preference and saved notes stay in this browser.
 - Long assistant answers (more than 200 words) can be downloaded as locally generated PDFs. Use **My Notes** to save, reopen, or remove answers.
+
+
+## Teaching refinements in this build
+
+- Topic-first lessons: enter a chapter/topic before sending a question.
+- Lesson responses with Markdown headings are displayed as independently expandable sections; the first section starts open.
+- The teacher system prompt prioritizes provided source context and requires supplementary knowledge to be labelled **Beyond Your Material**.
+- The interface label is **Verbal Explanation** and keeps the existing browser speech playback, pause/resume, and optional Hinglish conversion.
+- Markdown tables are styled for lesson explanations; the whiteboard panel offers a one-click prompt to request a revision/comparison table.
+- PDF text extraction and TXT/MD/CSV/JSON text file extraction run in the browser.
+- Image/video files are recognized in the UI, but OCR/image understanding and video transcription/frame extraction are **not connected yet**. Video URLs are stored as context but are not downloaded or transcribed. The UI tells the student about these limitations rather than claiming the teacher has read/watched them.
+- The current whiteboard table workflow renders tables inside lesson answers; a fully editable canvas, synchronized avatar animation, OCR, and video transcription are follow-on implementation tasks.

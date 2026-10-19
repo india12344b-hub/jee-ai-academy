@@ -2519,3 +2519,108 @@ input:focus-visible {
     font-size: 16px;
   }
 }
+
+
+/* Refinement: sequential folded teaching, topic selection and whiteboard tables */
+.topic-picker {
+  display: grid;
+  gap: 6px;
+  max-width: 520px;
+  margin-top: 12px;
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+.topic-picker input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.folded-explanation {
+  display: grid;
+  gap: 10px;
+}
+.folded-section {
+  border: 1px solid #35415b;
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: rgb(255 255 255 / 2%);
+}
+.folded-section > summary {
+  cursor: pointer;
+  color: #dce5ff;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.folded-section[open] > summary {
+  margin-bottom: 10px;
+  color: #aebaff;
+}
+.folded-section .markdown > :first-child {
+  margin-top: 0;
+}
+.folded-section .markdown > :last-child {
+  margin-bottom: 0;
+}
+.whiteboard-panel {
+  margin: 12px 0;
+  padding: 12px 15px;
+  border: 1px solid #34415b;
+  border-radius: 10px;
+  background: #111b2d;
+  color: var(--ink);
+}
+.whiteboard-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.whiteboard-panel p {
+  color: var(--muted-ink);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid #40506c;
+  padding: 9px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+.markdown th {
+  background: #253451;
+  color: #eef2ff;
+}
+.markdown td {
+  background: #141f32;
+}
+.video-link-card .field {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0;
+  font-size: 12px;
+}
+.video-link-card .field input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #d9e1ec;
+  border-radius: 6px;
+  color: #26364e;
+  background: white;
+}
+@media (max-width: 700px) {
+  .topic-picker { max-width: 100%; }
+  .folded-section { padding: 10px; }
+  .markdown table { font-size: 12px; }
+}

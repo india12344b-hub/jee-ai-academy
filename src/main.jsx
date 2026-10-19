@@ -14,7 +14,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const SYSTEM = `You are an expert JEE Main and Advanced tutor. Always write the complete teaching answer in English, regardless of the student's selected spoken-language preference. Teach patiently and accurately. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. When useful and supported by the question, organize the response with clear headings such as Concept Overview, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided.`;
+const SYSTEM = `You are an expert JEE Main and Advanced tutor. Always write the complete teaching answer in English, regardless of the student's selected spoken-language preference. Teach patiently and accurately. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. When useful and supported by the question, organize the response with clear headings such as Concept Overview, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use supplied material as the primary source. Clearly label any information not explicitly supported by the supplied material with the exact heading **Beyond Your Material** and say it is supplementary. Never invent source page numbers or claim content appears in a source unless present in the supplied context. Teach in short sequential sections, not one enormous dump. Prefer 3-6 clearly titled sections, each focused on one idea, with a worked example and a quick check only when useful. Use Markdown tables on request or when comparisons/data benefit from a table. For uploaded media or links, be honest about what content was actually extracted and never pretend to have watched/read inaccessible material.`;
 const NOTES_STORAGE_KEY = 'jee-ai-academy-notes-v1';
 const VOICE_STORAGE_KEY = 'jee-ai-academy-voice-language-v1';
 const LESSONS_STORAGE_KEY = 'jee-ai-academy-lessons-v1';
@@ -156,8 +156,30 @@ function Markdown({ children }) {
   );
 }
 
+function FoldedExplanation({ children }) {
+  const source = String(children || '');
+  const chunks = source.split(/(?=^#{1,3}\s+)/m).filter((part) => part.trim());
+  if (chunks.length <= 1) return <Markdown>{source}</Markdown>;
+  return (
+    <div className="folded-explanation">
+      {chunks.map((chunk, index) => {
+        const heading = chunk.match(/^#{1,3}\s+(.+)$/m)?.[1]?.replace(/[*_`]/g, '').trim();
+        return (
+          <details className="folded-section" key={`${index}-${heading || 'intro'}`} open={index === 0}>
+            <summary>{heading || (index === 0 ? 'Introduction' : `Step ${index + 1}`)}</summary>
+            <Markdown>{chunk}</Markdown>
+          </details>
+        );
+      })}
+    </div>
+  );
+}
+
 function App() {
   const [pdf, setPdf] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [sourceNote, setSourceNote] = useState('');
   const [pages, setPages] = useState([]);
   const [page, setPage] = useState(1);
   const [reading, setReading] = useState(false);
@@ -187,6 +209,7 @@ function App() {
   const playback = useRef(null);
   const speechRequest = useRef(0);
   const pdfInput = useRef(null);
+  const materialInput = useRef(null);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth' });
@@ -341,31 +364,70 @@ function App() {
   async function upload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') {
-      setError('Please choose a PDF.');
-      return;
-    }
     setReading(true);
     setError('');
     try {
-      const document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-      const extractedPages = [];
-      for (let index = 1; index <= document.numPages; index += 1) {
-        const pdfPage = await document.getPage(index);
-        const content = await pdfPage.getTextContent();
-        extractedPages.push(content.items.map((item) => item.str).join(' '));
+      const lowerName = file.name.toLowerCase();
+      if (file.type === 'application/pdf' || lowerName.endsWith('.pdf')) {
+        const document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+        const extractedPages = [];
+        for (let index = 1; index <= document.numPages; index += 1) {
+          const pdfPage = await document.getPage(index);
+          const content = await pdfPage.getTextContent();
+          extractedPages.push(content.items.map((item) => item.str).join(' '));
+        }
+        setPages(extractedPages);
+        setPage(1);
+        setPdf(file.name);
+        setSourceNote(`PDF "${file.name}" has ${document.numPages} pages. Text extraction is available; scanned pages without selectable text may require OCR.`);
+        setActiveLessonId(null);
+        setMessages([]);
+        setActiveView('pdf');
+      } else if (/\.(txt|md|csv|json)$/i.test(lowerName) || file.type.startsWith('text/')) {
+        const text = await file.text();
+        setPages([text]);
+        setPage(1);
+        setPdf(file.name);
+        setSourceNote(`Text material "${file.name}" extracted successfully.`);
+        setActiveLessonId(null);
+        setMessages([]);
+        setActiveView('pdf');
+      } else if (file.type.startsWith('image/')) {
+        setPdf(file.name);
+        setPages([]);
+        setSourceNote(`Image "${file.name}" selected. This version does not yet run OCR/vision on uploaded images, so the teacher cannot read its contents until image extraction is connected.`);
+        setActiveView('pdf');
+      } else if (file.type.startsWith('video/')) {
+        setPdf(file.name);
+        setPages([]);
+        setSourceNote(`Video "${file.name}" selected. Video transcription/frame extraction is not yet connected in this build; the teacher must not claim to have watched it.`);
+        setActiveView('pdf');
+      } else {
+        setError('Supported for text extraction now: PDF, TXT, MD and CSV. Image/video selection is recognized, but OCR/transcription still needs connecting.');
       }
-      setPages(extractedPages);
-      setPage(1);
-      setPdf(file.name);
-      setActiveLessonId(null);
-      setMessages([]);
-      setActiveView('pdf');
     } catch (uploadError) {
-      setError(`Could not read PDF: ${uploadError.message}`);
+      setError(`Could not read material: ${uploadError.message}`);
     } finally {
       setReading(false);
+      if (event.target) event.target.value = '';
     }
+  }
+
+  function useVideoLink() {
+    const value = sourceUrl.trim();
+    if (!value) {
+      setError('Paste a video URL first.');
+      return;
+    }
+    if (!/^https?:\/\/\S+/i.test(value)) {
+      setError('Please enter a complete http:// or https:// URL.');
+      return;
+    }
+    setPdf('Video link');
+    setPages([]);
+    setSourceNote(`Video link supplied: ${value}. This version stores the link as context but does not download/transcribe the video. Ask the teacher to explain only if transcript/content is supplied; otherwise it must disclose that it cannot access the video content.`);
+    setActiveView('pdf');
+    setError('');
   }
 
   function listen() {
@@ -409,6 +471,10 @@ function App() {
 
   async function send(question = input, startFresh = false) {
     if (!question.trim() || loading) return;
+    if (!selectedTopic.trim()) {
+      setError('Please select or type a chapter/topic first (for example, Work, Energy and Power).');
+      return;
+    }
     stopSpeech();
     setError('');
     setSavedNoteId(null);
@@ -423,12 +489,12 @@ function App() {
     setLoading(true);
     try {
       const textbookContext = pages.length
-        ? `Textbook: ${pdf}\nSelected page ${page}/${pages.length}\n${pages
+        ? `Selected subject: ${selectedSubject || 'JEE'}\nSelected topic: ${selectedTopic || 'Not specified'}\nTextbook: ${pdf}\nSelected page ${page}/${pages.length}\n${pages
             .slice(Math.max(0, page - 2), Math.min(pages.length, page + 1))
             .map((text, index) => `[Page ${Math.max(0, page - 2) + index + 1}] ${text}`)
             .join('\n')
             .slice(0, 13000)}`
-        : 'No PDF uploaded.';
+        : `Selected subject: ${selectedSubject || 'JEE'}\nSelected topic: ${selectedTopic || 'Not specified'}\nStudy material status: ${sourceNote || 'No readable material supplied.'}\nVideo URL: ${sourceUrl || 'None'}`;
       const result = await requestChat({
         system: SYSTEM,
         context: textbookContext,
@@ -611,21 +677,21 @@ function App() {
             <div className="section-eyebrow">YOUR LIBRARY</div>
             <h2>Study material</h2>
             <button className="upload" onClick={() => pdfInput.current?.click()} disabled={reading}>
-              {reading ? 'Reading PDF…' : '＋ Upload PDF'}
+              {reading ? 'Reading material…' : '＋ Upload study material'}
             </button>
             <input
               ref={pdfInput}
               id="pdf-upload-input"
               className="hidden-pdf-input"
               type="file"
-              accept="application/pdf"
+              accept=".pdf,.txt,.md,.csv,.json,image/*,video/*"
               onChange={upload}
               disabled={reading}
             />
             {pdf ? (
               <>
                 <p className="filename">{pdf}</p>
-                <p className="muted">{pages.length} pages · text extracted in browser</p>
+                <p className="muted">{pages.length ? `${pages.length} pages/sections · extracted in browser` : 'Material selected'}</p>{sourceNote && <p className="muted">{sourceNote}</p>}
                 <label className="field">
                   Page
                   <input
@@ -649,6 +715,15 @@ function App() {
                 <div className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</div>
               </>
             ) : <p className="muted">Add a textbook to discuss its pages with your teacher.</p>}
+          </section>
+          <section className="textbook-card video-link-card" aria-label="Video lesson link">
+            <div className="section-eyebrow">VIDEO SOURCE</div>
+            <h2>Teach from a video link</h2>
+            <label className="field">Video URL
+              <input type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" />
+            </label>
+            <button className="upload" onClick={useVideoLink}>＋ Add video link</button>
+            <p className="muted">Link ingestion/transcription is not connected yet. This build will clearly disclose that limitation.</p>
           </section>
           <div className="sidebar-footer">
             <span className="online-dot" /> AI tutor ready
@@ -766,17 +841,25 @@ function App() {
               <div className="lesson-heading">
                 <div className="section-eyebrow">{selectedSubject || activeLesson?.subject || 'PERSONAL TUTORING'} · CONCEPT LESSON</div>
                 <h1>{activeLesson?.title || messages.find((message) => message.role === 'user')?.content || 'Your learning workspace'}</h1>
-                <p>Explore the idea, work through the reasoning, and ask whenever you need clarity.</p>
+                <p>Explore one concept at a time. Choose a topic below; outside information is labelled clearly.</p>
+                <label className="topic-picker">Chapter / topic (required)
+                  <input value={selectedTopic} onChange={(event) => setSelectedTopic(event.target.value)} placeholder="e.g. Work, Energy and Power" />
+                </label>
               </div>
               <div className="lesson-toolbar">
                 <label className="voice-language">
-                  <span>Listen to lesson</span>
+                  <span>Verbal Explanation</span>
                   <select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }} aria-label="Spoken explanation language">
                     <option value="english">English</option><option value="hinglish">Hinglish</option>
                   </select>
                 </label>
-                <span className="written-language-note">Written lesson stays in English</span>
+                <span className="written-language-note">Hinglish voice · folded lesson sections · board tables</span>
               </div>
+              <details className="whiteboard-panel">
+                <summary>✎ Teaching whiteboard · Create a comparison table</summary>
+                <p>Ask the teacher to compare concepts, quantities, reactions or formulas in a Markdown table. Tables in lesson answers render as formatted tables below.</p>
+                <button className="message-action" onClick={() => setInput('Create a JEE revision table for the selected topic: compare the key concepts, formulas, SI units, and common mistakes. Clearly label any extra information as Beyond Your Material.')}>＋ Ask teacher to create a table</button>
+              </details>
               <div className="lesson-scroll">
                 {messages.map((message) => {
                   if (message.role === 'user') {
@@ -787,7 +870,7 @@ function App() {
                   return (
                     <article key={message.id} className="lesson-answer">
                       <div className="lesson-answer-label"><span className="teacher-avatar">✦</span><div><strong>Your AI Teacher</strong><small>JEE-focused explanation</small></div></div>
-                      <Markdown>{message.content}</Markdown>
+                      <FoldedExplanation>{message.content}</FoldedExplanation>
                       <div className="message-actions">
                         {activeSpeechId === message.id ? (
                           <>
@@ -829,7 +912,7 @@ function App() {
               <div className="welcome-row"><div><div className="section-eyebrow">JEE AI ACADEMY</div><h1>{activeView === 'subjects' ? 'Choose your subject' : activeView === 'recent' ? 'Recent lessons' : activeView === 'pdf' ? 'PDF Library' : activeView === 'practice' ? 'Practice with purpose' : 'Learning preferences'}</h1><p>{activeView === 'settings' ? 'Make your learning workspace feel right for you.' : 'A focused space to keep your preparation moving.'}</p></div></div>
               {activeView === 'subjects' && <section className="subject-grid secondary-subject-grid">{SUBJECTS.map((subject) => <button className={`subject-card subject-${subject.name.toLowerCase()} ${selectedSubject === subject.name ? 'selected' : ''}`} key={subject.name} onClick={() => beginSubject(subject.name)}><span className="subject-code">{subject.code} / JEE</span><span className="subject-symbol">{subject.name === 'Physics' ? 'Φ' : subject.name === 'Chemistry' ? '⌬' : '∑'}</span><strong>{subject.name}</strong><small>{subject.topics}</small><span className="subject-arrow">Start a lesson ↗</span></button>)}</section>}
               {activeView === 'recent' && <section className="dashboard-section full-section">{lessons.length ? lessons.map((lesson) => <button className="recent-lesson-row" key={lesson.id} onClick={() => openLesson(lesson)}><span className="recent-subject-icon">{lesson.subject === 'Physics' ? 'Φ' : lesson.subject === 'Chemistry' ? '⌬' : '∑'}</span><span><strong>{lesson.title}</strong><small>{lesson.subject} · {new Date(lesson.updatedAt).toLocaleString()}</small></span><b>Open lesson →</b></button>) : <p className="empty-copy">No lessons yet. Choose a subject or ask your AI Teacher to begin.</p>}</section>}
-              {activeView === 'pdf' && <section className="dashboard-section full-section pdf-library-card"><div className="library-icon">▧</div><div><h2>{pdf || 'Add a textbook or study guide'}</h2><p>{pdf ? `${pages.length} pages extracted. Your teacher can now reference the selected page in explanations.` : 'Upload a PDF to discuss its content with your AI Teacher. Text extraction happens in your browser.'}</p></div><button className="send-button" onClick={() => pdfInput.current?.click()} disabled={reading}>{reading ? 'Reading PDF…' : pdf ? 'Choose another PDF' : '＋ Upload a PDF'}</button>{pdf && <div className="library-page-control"><label htmlFor="library-page">Selected page</label><input id="library-page" type="number" min="1" max={pages.length} value={page} onChange={(event) => setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))} /><p className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</p></div>}</section>}
+              {activeView === 'pdf' && <section className="dashboard-section full-section pdf-library-card"><div className="library-icon">▧</div><div><h2>{pdf || 'Add a textbook or study guide'}</h2><p>{pdf ? `${pages.length} pages extracted. Your teacher can now reference the selected page in explanations.` : 'Upload supported study material to discuss its readable content with your AI Teacher. Text extraction happens in your browser.'}</p></div><button className="send-button" onClick={() => pdfInput.current?.click()} disabled={reading}>{reading ? 'Reading PDF…' : pdf ? 'Choose other material' : '＋ Upload study material'}</button>{pdf && <div className="library-page-control"><label htmlFor="library-page">Selected page</label><input id="library-page" type="number" min="1" max={pages.length} value={page} onChange={(event) => setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))} /><p className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</p></div>}</section>}
               {activeView === 'practice' && <section className="dashboard-section full-section practice-card"><div className="practice-mark">✳</div><h2>Turn practice into progress</h2><p>Ask for a JEE-level problem, a hint-first walkthrough, or a timed mini set on any topic.</p><button className="send-button" onClick={() => { setInput('Give me a JEE practice question with a guided solution on '); setActiveView('lesson'); }}>Create a practice lesson <span>→</span></button></section>}
               {activeView === 'settings' && <section className="dashboard-section full-section settings-card"><h2>Appearance</h2><p>Choose the theme for your learning workspace.</p><label className="voice-language"><span>Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="dark">Dark</option><option value="light">Light</option></select></label><h2 className="settings-subheading">Spoken lesson language</h2><p>Choose the language your teacher uses when you press Listen. Written answers always stay in English.</p><label className="voice-language"><span>Voice language</span><select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }}><option value="english">English</option><option value="hinglish">Hinglish</option></select></label></section>}
             </div>
