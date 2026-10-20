@@ -2659,3 +2659,310 @@ input:focus-visible {
     justify-content: space-between;
   }
 }
+
+/* Compact lesson header: keep the teacher's answer as the primary workspace. */
+.lesson-page {
+  width: min(1120px, 100%);
+  padding-top: 10px;
+  min-height: 0;
+}
+
+.lesson-topline {
+  min-height: 20px;
+}
+
+.lesson-heading-compact {
+  padding: 8px 0 9px;
+}
+
+.lesson-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lesson-heading-compact h1 {
+  margin: 3px 0 2px;
+  font-size: clamp(19px, 2.2vw, 25px);
+  line-height: 1.18;
+}
+
+.lesson-heading-compact .section-eyebrow {
+  font-size: 9px;
+  letter-spacing: .09em;
+}
+
+.lesson-heading-compact p {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.lesson-toolbar-compact {
+  min-height: 42px;
+  padding: 5px 0;
+  gap: 9px;
+}
+
+.lesson-toolbar-compact .teacher-explain-button {
+  min-height: 34px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+
+.compact-voice-language {
+  gap: 5px;
+}
+
+.compact-voice-language select {
+  padding: 4px 7px;
+}
+
+.board-open-button {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text, #dce7fa);
+  background: var(--surface, #152238);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.board-open-button:hover,
+.board-reopen-fab:hover {
+  border-color: #7187ff;
+  filter: brightness(1.08);
+}
+
+.floating-whiteboard {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  min-width: 300px;
+  min-height: 220px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 80px);
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
+  border: 1px solid #53698b;
+  border-radius: 13px;
+  color: #e7edf8;
+  background: #0f1728;
+  box-shadow: 0 20px 70px rgb(0 0 0 / 48%), 0 0 0 1px rgb(255 255 255 / 3%) inset;
+}
+
+.floating-whiteboard.board-maximized {
+  inset: 78px 18px 18px 240px;
+  width: auto !important;
+  height: auto !important;
+  max-width: none;
+  max-height: none;
+  resize: none;
+}
+
+.floating-board-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 7px 9px;
+  border-bottom: 1px solid #34445f;
+  background: #17243a;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.floating-board-head:active {
+  cursor: grabbing;
+}
+
+.board-drag-grip {
+  color: #92a7c8;
+  font-size: 18px;
+}
+
+.floating-board-title {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+.floating-board-title strong {
+  font-size: 12px;
+}
+
+.floating-board-title small {
+  overflow: hidden;
+  color: #9aa9c2;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floating-board-head button {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border: 1px solid #3b4d6b;
+  border-radius: 6px;
+  color: #e8efff;
+  background: #22334e;
+  font-size: 11px;
+}
+
+.floating-board-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 16px 10px;
+  color: #e4ebf8;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.floating-board-content .markdown {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.floating-board-content .markdown table {
+  width: 100%;
+  margin: 10px 0;
+  border-collapse: collapse;
+}
+
+.floating-board-content .markdown th,
+.floating-board-content .markdown td {
+  padding: 8px 10px;
+  border: 1px solid #3b4d6b;
+  text-align: left;
+}
+
+.floating-board-content .markdown th {
+  background: #20324e;
+}
+
+.floating-board-content .markdown .katex-display {
+  overflow-x: auto;
+  padding: 7px 0;
+}
+
+.board-empty-state {
+  display: grid;
+  min-height: 150px;
+  align-content: center;
+  justify-items: center;
+  color: #9aa9c2;
+  text-align: center;
+}
+
+.board-empty-state strong {
+  color: #e7edf8;
+}
+
+.board-empty-state p {
+  max-width: 300px;
+  font-size: 12px;
+}
+
+.board-resize-hint {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-top: 1px solid #293a54;
+  color: #8193b0;
+  font-size: 9px;
+  text-align: right;
+}
+
+.board-reopen-fab {
+  position: fixed;
+  z-index: 900;
+  right: 18px;
+  bottom: 90px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid #53698b;
+  border-radius: 10px;
+  color: #f2f6ff;
+  background: #1a2a43;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .lesson-page {
+    height: calc(100dvh - 62px);
+    padding: 8px 12px 10px;
+  }
+
+  .lesson-heading-compact {
+    padding: 7px 0;
+  }
+
+  .lesson-title-row {
+    align-items: flex-start;
+  }
+
+  .lesson-heading-compact h1 {
+    font-size: 19px;
+  }
+
+  .board-open-button {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+
+  .lesson-toolbar-compact {
+    flex-wrap: nowrap;
+    gap: 7px;
+  }
+
+  .lesson-toolbar-compact .teacher-explain-button {
+    width: auto;
+    min-height: 33px;
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+
+  .lesson-toolbar-compact .written-language-note {
+    display: none;
+  }
+
+  .floating-whiteboard,
+  .floating-whiteboard.board-maximized {
+    inset: 72px 8px 8px 8px;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    resize: none;
+  }
+
+  .floating-board-head {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .floating-board-title small {
+    max-width: 120px;
+  }
+
+  .floating-board-head button {
+    padding: 5px;
+  }
+
+  .board-reopen-fab {
+    right: 10px;
+    bottom: 82px;
+  }
+}

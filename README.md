@@ -19,3 +19,13 @@ Never commit your Groq API key to GitHub.
 - Assistant answers use Markdown and KaTeX for inline math and display derivations. Answers wrapped in clear formula-style parentheses are also recognized without interpreting ordinary prose or code as math.
 - Choose English or Hinglish under **Spoken explanation**. Written answers stay in English; Hinglish speech is generated only when the user presses Play. Speech-language preference and saved notes stay in this browser.
 - Long assistant answers (more than 200 words) can be downloaded as locally generated PDFs. Use **My Notes** to save, reopen, or remove answers.
+
+
+## UX refinements (October 2026)
+
+- Compact lesson header and voice controls to give explanations more room.
+- Optional floating whiteboard that can be opened from the lesson, dragged by its title bar, resized from the corner, minimized, maximized, or closed.
+- Whiteboard notes persist in browser local storage when hidden and can be downloaded to the student's device as a Markdown file using **Save to Device**.
+- Teacher instructions invite students to open the optional board when a visual explanation would help.
+
+The whiteboard currently displays the latest teacher response as retained notes; a separate model-generated drawing/action stream and a full synchronized avatar canvas remain future work.

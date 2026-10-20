@@ -14,11 +14,16 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const SYSTEM = `You are an expert JEE Main and Advanced tutor. Write the teaching answer in English and teach patiently, accurately, and one concept at a time. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Use concise meaningful headings such as Concept, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question when useful. If the student asks for a comparison or revision table, provide the actual Markdown table directly. Never output interface instructions, UI mockup cards, phrases like 'Teaching whiteboard', 'Ask teacher to create a table', or instructions telling the student to click a feature. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided. If extra information is not in the supplied material, clearly label it 'Beyond Your Material'.`;
+const SYSTEM = `You are an expert JEE Main and Advanced tutor. Write the teaching answer in English and teach patiently, accurately, and one concept at a time. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Use concise meaningful headings such as Concept, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question when useful. If the student asks for a comparison or revision table, provide the actual Markdown table directly. Never output interface instructions, UI mockup cards, phrases like 'Teaching whiteboard', 'Ask teacher to create a table', or instructions telling the student to click a feature. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided. If extra information is not in the supplied material, clearly label it 'Beyond Your Material'. When a diagram, equation layout, comparison table, graph, or visual derivation would materially improve understanding, briefly invite the student to open the optional whiteboard (for example: 'Please open the whiteboard; I’ll show this step visually.'). Do not emit UI instructions otherwise, and never claim that a diagram has been drawn unless the board content actually contains it.`;
 const NOTES_STORAGE_KEY = 'jee-ai-academy-notes-v1';
 const VOICE_STORAGE_KEY = 'jee-ai-academy-voice-language-v1';
 const LESSONS_STORAGE_KEY = 'jee-ai-academy-lessons-v1';
 const THEME_STORAGE_KEY = 'jee-ai-academy-theme-v1';
+const BOARD_STORAGE_KEY = 'jee-ai-academy-whiteboard-v1';
+
+function readSavedBoard() {
+  try { return localStorage.getItem(BOARD_STORAGE_KEY) || ''; } catch { return ''; }
+}
 const SUBJECTS = [
   { name: 'Physics', code: '01', topics: 'Mechanics · Electricity · Optics' },
   { name: 'Chemistry', code: '02', topics: 'Physical · Organic · Inorganic' },
@@ -202,15 +207,32 @@ function App() {
   const [activeView, setActiveView] = useState('home');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
+  const [boardMinimized, setBoardMinimized] = useState(false);
+  const [boardMaximized, setBoardMaximized] = useState(false);
+  const [boardContent, setBoardContent] = useState(readSavedBoard);
+  const [boardPosition, setBoardPosition] = useState(() => ({ left: Math.max(16, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 520), top: Math.max(80, (typeof window !== 'undefined' ? window.innerHeight : 800) - 490), width: 480, height: 410 }));
+  const boardDrag = useRef(null);
   const bottom = useRef(null);
   const recognition = useRef(null);
   const playback = useRef(null);
   const speechRequest = useRef(0);
   const pdfInput = useRef(null);
+  const latestTeacherMessage = [...messages].reverse().find((message) => message.role === 'assistant');
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  useEffect(() => {
+    try { localStorage.setItem(BOARD_STORAGE_KEY, boardContent); } catch { /* Board remains usable if storage is unavailable. */ }
+  }, [boardContent]);
+
+  useEffect(() => {
+    if (!latestTeacherMessage) return;
+    const nextBoardContent = cleanTeachingAnswer(latestTeacherMessage.content).trim();
+    if (nextBoardContent) setBoardContent(nextBoardContent);
+  }, [latestTeacherMessage?.id]);
 
   useEffect(
     () => () => {
@@ -576,12 +598,41 @@ function App() {
     setError('');
   }
 
+  function downloadBoardNotes() {
+    const content = boardContent.trim() || 'No whiteboard notes yet.';
+    const blob = new Blob([`JEE AI Academy — Whiteboard Notes\n\n${content}`], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'JEE-AI-Academy-Whiteboard-Notes.md';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function openBoard() {
+    setBoardOpen(true);
+    setBoardMinimized(false);
+    setBoardMaximized(false);
+  }
+
+  function startBoardDrag(event) {
+    if (event.target.closest('button')) return;
+    boardDrag.current = { x: event.clientX, y: event.clientY, left: boardPosition.left, top: boardPosition.top };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveBoardDrag(event) {
+    if (!boardDrag.current || boardMaximized) return;
+    const drag = boardDrag.current;
+    setBoardPosition((current) => ({ ...current, left: Math.max(0, Math.min(window.innerWidth - 160, drag.left + event.clientX - drag.x)), top: Math.max(64, Math.min(window.innerHeight - 100, drag.top + event.clientY - drag.y)) }));
+  }
+
   const selectedNote = notes.find((note) => note.id === selectedNoteId);
   const savedMessageIds = new Set(notes.map((note) => note.messageId));
   const activeLesson = lessons.find((lesson) => lesson.id === activeLessonId);
   const recentLessons = lessons.slice(0, 3);
-  const latestTeacherMessage = [...messages].reverse().find((message) => message.role === 'assistant');
-  const boardTable = latestTeacherMessage ? extractMarkdownTable(latestTeacherMessage.content) : '';
   const showHome = activeView === 'home';
 
   return (
@@ -785,33 +836,28 @@ function App() {
                 <button className="breadcrumb-button" onClick={openHome}>← Home</button><span>/</span><span>{selectedSubject || activeLesson?.subject || 'JEE Lesson'}</span>
                 <button className="new-lesson-inline" onClick={() => startNewLesson(selectedSubject)}>＋ New lesson</button>
               </div>
-              <div className="lesson-heading">
-                <div className="section-eyebrow">{selectedSubject || activeLesson?.subject || 'PERSONAL TUTORING'} · CONCEPT LESSON</div>
-                <h1>{selectedSubject ? `${selectedSubject} · Verbal Explanation` : 'Verbal Explanation'}</h1>
-                <p>Learn one concept at a time. Your teacher explains first; the board supports the lesson.</p>
+              <div className="lesson-heading lesson-heading-compact">
+                <div className="lesson-title-row"><div><div className="section-eyebrow">{selectedSubject || activeLesson?.subject || 'PERSONAL TUTORING'} · CONCEPT LESSON</div><h1>{selectedSubject ? `${selectedSubject} · Verbal Explanation` : 'Verbal Explanation'}</h1></div><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>
+                <p>One concept at a time · Your teacher will invite you to open the board when a diagram, formula or table helps.</p>
               </div>
-              <div className="lesson-toolbar">
+              <div className="lesson-toolbar lesson-toolbar-compact">
                 <button
                   className="teacher-explain-button"
                   onClick={() => latestTeacherMessage && playAnswer({ ...latestTeacherMessage, content: cleanTeachingAnswer(latestTeacherMessage.content) })}
                   disabled={!latestTeacherMessage || loading || speechLoadingId === latestTeacherMessage?.id}
                   title="Start the teacher's verbal explanation"
                 >
-                  {speechLoadingId === latestTeacherMessage?.id ? 'Preparing explanation…' : activeSpeechId === latestTeacherMessage?.id ? (speechPaused ? '▶ Resume Explanation' : '⏸ Pause Explanation') : '▶ Teacher Explanation'}
+                  {speechLoadingId === latestTeacherMessage?.id ? 'Preparing…' : activeSpeechId === latestTeacherMessage?.id ? (speechPaused ? '▶ Resume' : '⏸ Pause') : '▶ Teacher Explanation'}
                 </button>
                 {activeSpeechId === latestTeacherMessage?.id && <button className="message-action toolbar-stop" onClick={stopSpeech}>■ Stop</button>}
-                <label className="voice-language">
-                  <span>Verbal Explanation</span>
+                <label className="voice-language compact-voice-language">
+                  <span>Voice</span>
                   <select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }} aria-label="Verbal explanation language">
                     <option value="english">English</option><option value="hinglish">Hinglish</option>
                   </select>
                 </label>
-                <span className="written-language-note">Hinglish voice · sequential lesson</span>
+                <span className="written-language-note">Text · {voiceLanguage === 'hinglish' ? 'Hinglish' : 'English'} voice</span>
               </div>
-              <section className="teaching-board" aria-label="Teaching whiteboard">
-                <div className="teaching-board-head"><span className="board-icon">▤</span><div><strong>Teaching Board</strong><small>{boardTable ? 'Comparison table from the current explanation' : 'Tables and key working appear here when relevant'}</small></div></div>
-                {boardTable ? <Markdown>{boardTable}</Markdown> : <div className="board-empty">Your teacher will place key formulas, diagrams and comparison tables here during the lesson.</div>}
-              </section>
               <div className="lesson-scroll">
                 {messages.map((message) => {
                   if (message.role === 'user') {
@@ -849,6 +895,26 @@ function App() {
                 <div ref={bottom} />
               </div>
               {error && <div className="error lesson-error" role="alert">{error}</div>}
+              {boardOpen && !boardMinimized && (
+                <section
+                  className={`floating-whiteboard ${boardMaximized ? 'board-maximized' : ''}`}
+                  style={boardMaximized ? undefined : { left: `${boardPosition.left}px`, top: `${boardPosition.top}px`, width: `${boardPosition.width}px`, height: `${boardPosition.height}px` }}
+                  aria-label="Floating whiteboard"
+                >
+                  <div className="floating-board-head" onPointerDown={startBoardDrag} onPointerMove={moveBoardDrag} onPointerUp={() => { boardDrag.current = null; }} onPointerCancel={() => { boardDrag.current = null; }}>
+                    <span className="board-drag-grip">⠿</span><div className="floating-board-title"><strong>Whiteboard</strong><small>Notes stay saved when you close this board</small></div>
+                    <button title="Save whiteboard notes to your device" onClick={downloadBoardNotes}>↓ Save to Device</button>
+                    <button title="Minimize board" onClick={() => { setBoardMinimized(true); setBoardOpen(false); }}>−</button>
+                    <button title={boardMaximized ? 'Restore board size' : 'Maximize board'} onClick={() => setBoardMaximized((value) => !value)}>{boardMaximized ? '❐' : '□'}</button>
+                    <button title="Close board (notes are retained)" onClick={() => { setBoardOpen(false); setBoardMaximized(false); }}>×</button>
+                  </div>
+                  <div className="floating-board-content">
+                    {boardContent.trim() ? <Markdown>{boardContent}</Markdown> : <div className="board-empty-state"><strong>Your board is ready</strong><p>When a diagram, equation or table will help, your teacher will ask you to open this board.</p></div>}
+                  </div>
+                  <div className="board-resize-hint">Drag the title bar to move · Resize from the corner</div>
+                </section>
+              )}
+              {!boardOpen && <button className="board-reopen-fab" onClick={openBoard} title="Open whiteboard">▤ <span>{boardMinimized ? 'Restore whiteboard' : 'Open whiteboard'}</span></button>}
               <div className="followup-composer">
                 <label htmlFor="followup-input">Ask a follow-up question</label>
                 <div className="followup-row">
