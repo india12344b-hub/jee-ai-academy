@@ -29,3 +29,10 @@ Never commit your Groq API key to GitHub.
 - Teacher instructions invite students to open the optional board when a visual explanation would help.
 
 The whiteboard currently displays the latest teacher response as retained notes; a separate model-generated drawing/action stream and a full synchronized avatar canvas remain future work.
+
+## Full-screen focused lesson mode
+- Use **Full screen** in the lesson heading to hide the site navigation and lesson setup controls.
+- Focus mode displays teacher explanations and a persistent **Open whiteboard** control.
+- The message composer collapses to **Click to message your teacher** and expands on demand.
+- Use **Exit full screen** to return to the standard workspace.
+- The floating whiteboard remains available above the lesson and can be minimized, resized, maximized, or closed without clearing saved board notes.

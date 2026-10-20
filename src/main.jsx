@@ -208,6 +208,8 @@ function App() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [fullScreenStudy, setFullScreenStudy] = useState(false);
+  const [fullScreenMessageOpen, setFullScreenMessageOpen] = useState(false);
   const [boardMinimized, setBoardMinimized] = useState(false);
   const [boardMaximized, setBoardMaximized] = useState(false);
   const [boardContent, setBoardContent] = useState(readSavedBoard);
@@ -636,7 +638,7 @@ function App() {
   const showHome = activeView === 'home';
 
   return (
-    <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-theme={theme}>
+    <div className={`app ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${fullScreenStudy && activeView === 'lesson' ? 'full-screen-study' : ''}`} data-theme={theme}>
       <header className="topbar">
         <button
           className="sidebar-toggle"
@@ -831,13 +833,14 @@ function App() {
               </section>
             </div>
           ) : activeView === 'lesson' ? (
-            <div className="lesson-page">
+            <div className={`lesson-page ${fullScreenStudy ? 'lesson-page-full-screen' : ''}`}>
+              {fullScreenStudy && <div className="fullscreen-study-bar"><button className="fullscreen-exit-button" onClick={() => { setFullScreenStudy(false); setFullScreenMessageOpen(false); }}>↙ Exit full screen</button><span className="fullscreen-lesson-label">{selectedSubject || activeLesson?.subject || 'JEE'} · Lesson</span><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>}
               <div className="lesson-topline">
                 <button className="breadcrumb-button" onClick={openHome}>← Home</button><span>/</span><span>{selectedSubject || activeLesson?.subject || 'JEE Lesson'}</span>
                 <button className="new-lesson-inline" onClick={() => startNewLesson(selectedSubject)}>＋ New lesson</button>
               </div>
               <div className="lesson-heading lesson-heading-compact">
-                <div className="lesson-title-row"><div><div className="section-eyebrow">{selectedSubject || activeLesson?.subject || 'PERSONAL TUTORING'} · CONCEPT LESSON</div><h1>{selectedSubject ? `${selectedSubject} · Verbal Explanation` : 'Verbal Explanation'}</h1></div><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>
+                <div className="lesson-title-row"><div><div className="section-eyebrow">{selectedSubject || activeLesson?.subject || 'PERSONAL TUTORING'} · CONCEPT LESSON</div><h1>{selectedSubject ? `${selectedSubject} · Verbal Explanation` : 'Verbal Explanation'}</h1></div><div className="lesson-heading-actions"><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button><button className="fullscreen-toggle-button" onClick={() => { setFullScreenStudy(true); setFullScreenMessageOpen(false); }} title="Focus on the teacher's explanation">⛶ Full screen</button></div></div>
                 <p>One concept at a time · Your teacher will invite you to open the board when a diagram, formula or table helps.</p>
               </div>
               <div className="lesson-toolbar lesson-toolbar-compact">
@@ -915,15 +918,20 @@ function App() {
                 </section>
               )}
               {!boardOpen && <button className="board-reopen-fab" onClick={openBoard} title="Open whiteboard">▤ <span>{boardMinimized ? 'Restore whiteboard' : 'Open whiteboard'}</span></button>}
-              <div className="followup-composer">
-                <label htmlFor="followup-input">Ask a follow-up question</label>
-                <div className="followup-row">
-                  <button className={listening ? 'recording' : 'mic-button'} onClick={listen} aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}>{listening ? '■' : '◉'}</button>
-                  <textarea id="followup-input" placeholder="Ask for another example, a simpler explanation, or a derivation…" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} />
-                  <button className="send-button" disabled={loading || !input.trim()} onClick={() => send()}>Ask <span>→</span></button>
+              {fullScreenStudy && !fullScreenMessageOpen ? (
+                <button className="fullscreen-message-collapsed" onClick={() => setFullScreenMessageOpen(true)}>＋ Click to message your teacher</button>
+              ) : (
+                <div className={`followup-composer ${fullScreenStudy ? 'fullscreen-followup-open' : ''}`}>
+                  {fullScreenStudy && <button className="collapse-message-button" onClick={() => setFullScreenMessageOpen(false)} aria-label="Collapse message composer">⌄ Hide message box</button>}
+                  <label htmlFor="followup-input">Ask a follow-up question</label>
+                  <div className="followup-row">
+                    <button className={listening ? 'recording' : 'mic-button'} onClick={listen} aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}>{listening ? '■' : '◉'}</button>
+                    <textarea id="followup-input" placeholder="Ask for another example, a simpler explanation, or a derivation…" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); if (fullScreenStudy) setFullScreenMessageOpen(false); } }} />
+                    <button className="send-button" disabled={loading || !input.trim()} onClick={() => { send(); if (fullScreenStudy) setFullScreenMessageOpen(false); }}>Ask <span>→</span></button>
+                  </div>
+                  {!fullScreenStudy && <small>AI can make mistakes. Verify important formulas and solutions.</small>}
                 </div>
-                <small>AI can make mistakes. Verify important formulas and solutions.</small>
-              </div>
+              )}
             </div>
           ) : (
             <div className="dashboard-content secondary-view">

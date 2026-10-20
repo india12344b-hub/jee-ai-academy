@@ -2966,3 +2966,216 @@ input:focus-visible {
     bottom: 82px;
   }
 }
+
+/* Focus / full-screen lesson: explanation first, with optional board and collapsed messaging. */
+.lesson-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.fullscreen-toggle-button,
+.fullscreen-exit-button {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text, #dce7fa);
+  background: var(--surface, #152238);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fullscreen-study-bar { display: none; }
+
+.full-screen-study .topbar,
+.full-screen-study .sidebar,
+.full-screen-study .sidebar-toggle,
+.full-screen-study .lesson-topline,
+.full-screen-study .lesson-heading,
+.full-screen-study .lesson-toolbar {
+  display: none !important;
+}
+
+.full-screen-study .workspace-shell {
+  display: block;
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+.full-screen-study .main-panel {
+  width: 100%;
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+.full-screen-study .lesson-page.lesson-page-full-screen {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  max-width: none;
+  flex-direction: column;
+  gap: 0;
+  padding: 12px clamp(16px, 5vw, 76px) 10px;
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+.full-screen-study .fullscreen-study-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  margin-bottom: 6px;
+}
+
+.fullscreen-lesson-label {
+  flex: 1;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.full-screen-study .lesson-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  overflow: auto;
+  padding: 10px 2px 20px;
+  border-top: 0;
+}
+
+.full-screen-study .question-marker,
+.full-screen-study .lesson-answer-label,
+.full-screen-study .lesson-answer .message-actions,
+.full-screen-study .lesson-error {
+  display: none !important;
+}
+
+.full-screen-study .lesson-answer {
+  width: min(100%, 1000px);
+  margin: 0 auto 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: clamp(16px, 1.45vw, 19px);
+  line-height: 1.8;
+}
+
+.full-screen-study .lesson-answer .markdown {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.full-screen-study .lesson-answer .markdown h1,
+.full-screen-study .lesson-answer .markdown h2,
+.full-screen-study .lesson-answer .markdown h3 {
+  margin-top: 1.1em;
+  line-height: 1.3;
+}
+
+.full-screen-study .lesson-answer .markdown table {
+  font-size: .9em;
+}
+
+.full-screen-study .lesson-empty-state {
+  margin: 10vh auto;
+}
+
+.full-screen-study .followup-composer {
+  flex: 0 0 auto;
+  width: min(100%, 1000px);
+  margin: 0 auto;
+  padding-top: 8px;
+  border-top: 0;
+}
+
+.fullscreen-message-collapsed {
+  flex: 0 0 auto;
+  align-self: center;
+  width: min(100%, 1000px);
+  min-height: 42px;
+  margin: 8px auto 0;
+  padding: 10px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  background: var(--surface);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.fullscreen-message-collapsed:hover,
+.fullscreen-toggle-button:hover,
+.fullscreen-exit-button:hover {
+  border-color: #7187ff;
+}
+
+.fullscreen-followup-open {
+  padding: 10px 12px 8px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.collapse-message-button {
+  display: block;
+  margin: 0 0 8px auto;
+  padding: 5px 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+}
+
+.full-screen-study .floating-whiteboard.board-maximized {
+  inset: 12px !important;
+}
+
+.full-screen-study .board-reopen-fab {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .lesson-heading-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .fullscreen-toggle-button,
+  .board-open-button {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+
+  .full-screen-study .lesson-page.lesson-page-full-screen {
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .full-screen-study .fullscreen-study-bar {
+    gap: 6px;
+  }
+
+  .fullscreen-lesson-label {
+    font-size: 10px;
+  }
+
+  .fullscreen-exit-button,
+  .full-screen-study .fullscreen-study-bar .board-open-button {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+
+  .full-screen-study .lesson-answer {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+}
+.full-screen-study .lesson-empty-state { display: none !important; }
