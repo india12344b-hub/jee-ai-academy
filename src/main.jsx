@@ -14,7 +14,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const SYSTEM = `You are an expert JEE Main and Advanced tutor. Write the teaching answer in English and teach patiently, accurately, and one concept at a time. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Use concise meaningful headings such as Concept, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question when useful. If the student asks for a comparison or revision table, provide the actual Markdown table directly. Never output interface instructions, UI mockup cards, phrases like 'Teaching whiteboard', 'Ask teacher to create a table', or instructions telling the student to click a feature. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided. If extra information is not in the supplied material, clearly label it 'Beyond Your Material'. When a diagram, equation layout, comparison table, graph, or visual derivation would materially improve understanding, briefly invite the student to open the optional whiteboard (for example: 'Please open the whiteboard; I’ll show this step visually.'). Do not emit UI instructions otherwise, and never claim that a diagram has been drawn unless the board content actually contains it.`;
+const SYSTEM = `You are an expert JEE Main and Advanced tutor. Write the teaching answer in English and teach patiently, accurately, and one concept at a time. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Use concise meaningful headings such as Concept, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question when useful. If the student asks for a comparison or revision table, provide the actual Markdown table directly. Format every table as valid Markdown: put the header row, separator row, and each data row on separate lines. Never flatten multiple table rows into one line or imitate a table with inline pipes. Never output interface instructions, UI mockup cards, phrases like 'Teaching whiteboard', 'Ask teacher to create a table', or instructions telling the student to click a feature. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided. If extra information is not in the supplied material, clearly label it 'Beyond Your Material'. When a diagram, equation layout, comparison table, graph, or visual derivation would materially improve understanding, briefly invite the student to open the optional whiteboard (for example: 'Please open the whiteboard; I’ll show this step visually.'). Do not emit UI instructions otherwise, and never claim that a diagram has been drawn unless the board content actually contains it.`;
 const NOTES_STORAGE_KEY = 'jee-ai-academy-notes-v1';
 const VOICE_STORAGE_KEY = 'jee-ai-academy-voice-language-v1';
 const LESSONS_STORAGE_KEY = 'jee-ai-academy-lessons-v1';
@@ -143,12 +143,49 @@ async function requestChat(payload) {
   return data;
 }
 
+function flattenMarkdownText(value) {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.map(flattenMarkdownText).join('');
+  if (React.isValidElement(value)) return flattenMarkdownText(value.props?.children);
+  return '';
+}
+
+function TableAwareParagraph({ children, ...props }) {
+  const raw = flattenMarkdownText(children).replace(/\s+/g, ' ').trim();
+  const cells = raw.split('|').map((cell) => cell.trim()).filter(Boolean);
+  const separatorIndex = cells.findIndex((cell) => /^:?-{3,}:?$/.test(cell));
+  const columnCount = separatorIndex;
+  const looksLikeFlattenedTable = separatorIndex > 0 && columnCount >= 2 && cells.length >= columnCount * 2;
+
+  if (looksLikeFlattenedTable) {
+    const headers = cells.slice(0, columnCount);
+    const bodyCells = cells.slice(separatorIndex + columnCount);
+    const rows = [];
+    for (let index = 0; index < bodyCells.length; index += columnCount) {
+      const row = bodyCells.slice(index, index + columnCount);
+      if (row.length === columnCount && !row.every((cell) => /^:?-{3,}:?$/.test(cell))) rows.push(row);
+    }
+    if (rows.length) {
+      return (
+        <div className="markdown-table-wrap">
+          <table className="lesson-data-table">
+            <thead><tr>{headers.map((cell, index) => <th key={`h-${index}`}>{cell}</th>)}</tr></thead>
+            <tbody>{rows.map((row, rowIndex) => <tr key={`r-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`c-${cellIndex}`}>{cell}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      );
+    }
+  }
+  return <p {...props}>{children}</p>;
+}
+
 function Markdown({ children }) {
   return (
     <div className="markdown">
       <ReactMarkdown
+        components={{ p: TableAwareParagraph }}
         remarkPlugins={[remarkMath]}
-        rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
+        rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }] ]}
       >
         {normalizeMathMarkdown(children)}
       </ReactMarkdown>

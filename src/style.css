@@ -3287,3 +3287,44 @@ input:focus-visible {
 }
 
 .full-screen-study .lesson-error { display: block !important; flex: 0 0 auto; width: min(100%, 1000px); margin: 4px auto; }
+
+
+/* Reliable tables in teacher explanations, including pipe tables returned on one line. */
+.markdown-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 14px 0 18px;
+  border: 1px solid var(--border, #34445c);
+  border-radius: 10px;
+  scrollbar-width: thin;
+}
+.markdown .lesson-data-table,
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .94em;
+  line-height: 1.55;
+}
+.markdown .lesson-data-table th,
+.markdown .lesson-data-table td,
+.markdown table th,
+.markdown table td {
+  padding: 10px 12px;
+  border: 1px solid var(--border, #34445c);
+  text-align: left;
+  vertical-align: top;
+  min-width: 92px;
+}
+.markdown .lesson-data-table th,
+.markdown table th {
+  background: rgba(76, 112, 174, .18);
+  color: var(--text, inherit);
+  font-weight: 700;
+}
+.markdown .lesson-data-table tbody tr:nth-child(even),
+.markdown table tbody tr:nth-child(even) {
+  background: rgba(127, 147, 180, .07);
+}
+.lesson-answer .markdown .markdown-table-wrap { margin: 12px 0 18px; }
+.floating-board-content .markdown .markdown-table-wrap { margin: 8px 0; }
