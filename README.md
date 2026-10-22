@@ -52,3 +52,10 @@ The whiteboard currently displays the latest teacher response as retained notes;
 - Whiteboard content uses a separate `:::whiteboard ... :::` response payload. The app strips this from the main answer and renders it only in the optional board, preventing the board from automatically duplicating the written explanation.
 - The whiteboard storage key was versioned to avoid restoring legacy board content that previously duplicated the full lesson. New board notes remain in local browser storage when the board is minimized or closed.
 - The teacher controls board content; there are no student-facing pen, eraser, or marker tools.
+
+## Reference classroom UX (October 2026)
+- Full-screen lesson mode keeps the branded top bar visible and replaces the previous plain text-only focus layout with a teacher rail, primary explanation canvas, and an optional floating whiteboard.
+- The teacher rail includes the avatar artwork, playback controls, sentence-level teaching progress/rewind, voice question and typed-message entry points.
+- When the whiteboard is open, the main explanation reserves room for it so the board does not cover the lesson text. The board remains independently movable/resizable and keeps its separate teacher-provided payload.
+- The avatar artwork is bundled locally at `public/teacher-avatar.png`; no remote image service is required at runtime.
+- This is a polished UI and interaction layout. A live animated avatar whose lip movement is synchronized with speech still requires a separate animation/speech synchronization implementation.
