@@ -14,12 +14,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const SYSTEM = `You are an expert JEE Main and Advanced tutor. Write the teaching answer in English and teach patiently, accurately, and one concept at a time. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Use concise meaningful headings such as Concept, Step-by-Step Explanation, Worked Example, Key Formulas, JEE Exam Tip, or Practice Question when useful. If the student asks for a comparison or revision table, provide the actual Markdown table directly. Format every table as valid Markdown: put the header row, separator row, and each data row on separate lines. Never flatten multiple table rows into one line or imitate a table with inline pipes. Never output interface instructions, UI mockup cards, phrases like 'Teaching whiteboard', 'Ask teacher to create a table', or instructions telling the student to click a feature. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided. If extra information is not in the supplied material, clearly label it 'Beyond Your Material'. When a diagram, equation layout, comparison table, graph, or visual derivation would materially improve understanding, briefly invite the student to open the optional whiteboard (for example: 'Please open the whiteboard; I’ll show this step visually.'). Do not emit UI instructions otherwise, and never claim that a diagram has been drawn unless the board content actually contains it.`;
+const SYSTEM = `You are an expert JEE Main and Advanced tutor. Teach patiently, accurately, and one concept at a time. Written explanations are in clear English; spoken explanations may be Hinglish. Explain intuition before formulas, show stepwise derivations, check units and assumptions, and use correct LaTeX. Format inline math with \\( ... \\) and important equations or multi-line derivations with \\[ ... \\] on their own lines. Use concise meaningful headings when useful. Format tables as valid Markdown with the header, separator and every row on separate lines; never flatten table rows into pipe-separated prose. Never output interface instructions or mockup cards. Do not add irrelevant sections or invent facts. Prefer hints before full solutions unless requested. Ask one short comprehension question at a time. Use the supplied textbook excerpt as context, but never pretend to see pages not provided. If extra information is not in the supplied material, clearly label it 'Beyond Your Material'.
+
+FOLLOW-UP CONVERSATION RULE: Treat each new student message as a live conversation with the teacher, not a request to regenerate the entire lesson. Answer the latest doubt directly and naturally, referring to prior context only as needed. If the student says 'explain again', clarify only the specific concept they were just hearing/asking about, in a fresh conversational explanation; do not repeat the whole previous answer, all headings, or all tables unless the student explicitly asks for the full lesson again. If the student interrupts narration with a question, respond as a teacher speaking to that student.
+
+WHITEBOARD RULE: The main explanation is the teacher's spoken/text lesson. When a distinct visual would help, include an optional board-only payload at the very end using exactly this format:
+:::whiteboard
+[only the distinct diagram description, key equation steps, or a compact table needed on the board; do not copy the main explanation verbatim]
+:::
+The app hides this payload from the main answer and displays it only on the optional whiteboard. Do not put the entire explanation on the board. Never duplicate the main answer on the board. If no separate visual is useful, omit the whiteboard payload. You may invite the student to open the board only when you have included a board payload. For a comparison/revision table explicitly requested as the answer, provide the table in the main answer; the board payload, if useful, must be a different visual or omit it. If extra information is not in uploaded material, label it 'Beyond Your Material'.`;
 const NOTES_STORAGE_KEY = 'jee-ai-academy-notes-v1';
 const VOICE_STORAGE_KEY = 'jee-ai-academy-voice-language-v1';
 const LESSONS_STORAGE_KEY = 'jee-ai-academy-lessons-v1';
 const THEME_STORAGE_KEY = 'jee-ai-academy-theme-v1';
-const BOARD_STORAGE_KEY = 'jee-ai-academy-whiteboard-v1';
+const BOARD_STORAGE_KEY = 'jee-ai-academy-whiteboard-v2';
 
 function readSavedBoard() {
   try { return localStorage.getItem(BOARD_STORAGE_KEY) || ''; } catch { return ''; }
@@ -193,9 +201,20 @@ function Markdown({ children }) {
   );
 }
 
+function extractWhiteboardContent(markdown = '') {
+  const source = String(markdown);
+  const match = source.match(/:::whiteboard\s*\n([\s\S]*?)\n:::/i);
+  if (!match) return '';
+  const payload = match[1].trim();
+  const mainAnswer = source.replace(match[0], '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const normalizedPayload = payload.replace(/\s+/g, ' ').toLowerCase();
+  return normalizedPayload && mainAnswer.includes(normalizedPayload) ? '' : payload;
+}
+
 function cleanTeachingAnswer(markdown = '') {
-  // Remove UI-instruction sections accidentally returned by the model, while preserving the actual lesson.
+  // Board-only payloads are rendered in the optional whiteboard, never in the main answer.
   return String(markdown)
+    .replace(/:::whiteboard\s*\n[\s\S]*?\n:::/gi, '')
     .replace(/^#{1,6}\s*[^\n]*Teaching whiteboard[^\n]*\n[\s\S]*?(?=^#{1,6}\s|\n*$)/gim, '')
     .replace(/^\s*\+\s*Ask teacher to create a table\s*$/gim, '')
     .trim();
@@ -228,6 +247,7 @@ function App() {
   const [activeSpeechId, setActiveSpeechId] = useState(null);
   const [speechPaused, setSpeechPaused] = useState(false);
   const [speechLoadingId, setSpeechLoadingId] = useState(null);
+  const [speechProgress, setSpeechProgress] = useState({ messageId: null, index: 0, total: 0 });
   const [speechTexts, setSpeechTexts] = useState({});
   const [notes, setNotes] = useState(readSavedNotes);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -264,7 +284,9 @@ function App() {
 
   useEffect(() => {
     if (!latestTeacherMessage) return;
-    const nextBoardContent = cleanTeachingAnswer(latestTeacherMessage.content).trim();
+    const nextBoardContent = extractWhiteboardContent(latestTeacherMessage.content).trim();
+    // Update the board only when the teacher returned a dedicated visual payload.
+    // Ordinary conversation replies must never replace the board with a duplicate answer.
     if (nextBoardContent) setBoardContent(nextBoardContent);
   }, [latestTeacherMessage?.id]);
 
@@ -301,6 +323,7 @@ function App() {
     setActiveSpeechId(null);
     setSpeechPaused(false);
     setSpeechLoadingId(null);
+    setSpeechProgress({ messageId: null, index: 0, total: 0 });
   }
 
   function pauseSpeech() {
@@ -315,25 +338,9 @@ function App() {
     setSpeechPaused(false);
   }
 
-  function startSpeech(text, messageId, language) {
-    stopSpeech();
-    const synthesis = window.speechSynthesis;
-    if (!synthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-      setError('Speech playback is not supported in this browser.');
-      return;
-    }
-
-    const voices = synthesis.getVoices();
-    const isHinglish = language === 'hinglish';
-    const voice =
-      (isHinglish
-        ? voices.find((candidate) => candidate.lang.toLowerCase().startsWith('hi-in')) ||
-          voices.find((candidate) => candidate.lang.toLowerCase().startsWith('hi'))
-        : voices.find((candidate) => candidate.lang.toLowerCase().startsWith('en-in'))) ||
-      voices.find((candidate) => candidate.lang.toLowerCase().startsWith('en'));
-    const session = { id: messageId, cancelled: false };
+  function splitSpeechChunks(text) {
     const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g) || [text];
-    const chunks = sentences.flatMap((sentence) => {
+    return sentences.flatMap((sentence) => {
       const parts = [];
       let remaining = sentence.trim();
       while (remaining.length > 220) {
@@ -345,20 +352,42 @@ function App() {
       if (remaining) parts.push(remaining);
       return parts;
     });
-    let chunkIndex = 0;
+  }
+
+  function startSpeech(text, messageId, language, startAt = 0) {
+    stopSpeech();
+    const synthesis = window.speechSynthesis;
+    if (!synthesis || typeof SpeechSynthesisUtterance === 'undefined') {
+      setError('Speech playback is not supported in this browser.');
+      return;
+    }
+
+    const voices = synthesis.getVoices();
+    const isHinglish = language === 'hinglish';
+    const voice = (isHinglish
+      ? voices.find((candidate) => candidate.lang.toLowerCase().startsWith('hi-in')) || voices.find((candidate) => candidate.lang.toLowerCase().startsWith('hi'))
+      : voices.find((candidate) => candidate.lang.toLowerCase().startsWith('en-in'))) || voices.find((candidate) => candidate.lang.toLowerCase().startsWith('en'));
+    const chunks = splitSpeechChunks(text);
+    if (!chunks.length) return;
+    let chunkIndex = Math.max(0, Math.min(chunks.length - 1, Number(startAt) || 0));
+    const session = { id: messageId, cancelled: false, text, language, chunks };
     playback.current = session;
     setActiveSpeechId(messageId);
     setSpeechPaused(false);
+    setSpeechProgress({ messageId, index: chunkIndex, total: chunks.length });
 
     const speakNext = () => {
       if (playback.current !== session || session.cancelled) return;
+      const thisIndex = chunkIndex;
       const chunk = chunks[chunkIndex++]?.trim();
       if (!chunk) {
         playback.current = null;
         setActiveSpeechId(null);
         setSpeechPaused(false);
+        setSpeechProgress({ messageId, index: chunks.length, total: chunks.length });
         return;
       }
+      setSpeechProgress({ messageId, index: thisIndex, total: chunks.length });
       const utterance = new SpeechSynthesisUtterance(chunk);
       utterance.lang = isHinglish ? (voice?.lang || 'hi-IN') : (voice?.lang || 'en-IN');
       utterance.rate = 0.95;
@@ -372,15 +401,20 @@ function App() {
       };
       synthesis.speak(utterance);
     };
-
     speakNext();
+  }
+
+  function seekSpeech(value) {
+    const session = playback.current;
+    if (!session?.text) return;
+    startSpeech(session.text, session.id, session.language, Number(value));
   }
 
   async function playAnswer(message) {
     stopSpeech();
     const requestId = speechRequest.current;
     setError('');
-    let speechText = answerForSpeech(message.content);
+    let speechText = answerForSpeech(cleanTeachingAnswer(message.content));
     if (voiceLanguage === 'hinglish') {
       speechText = speechTexts[message.id];
       if (!speechText) {
@@ -395,7 +429,7 @@ function App() {
                 ? 'Write Hindi words in Devanagari and retain technical terms in English.'
                 : 'Write Hindi words in simple Roman-script Hinglish so an English-India speech voice can pronounce them.'
             } Output only the spoken explanation, with no headings, labels, or notes.`,
-            context: `English answer to convert for speech only:\n${message.content.slice(0, 12000)}`,
+            context: `English answer to convert for speech only:\n${cleanTeachingAnswer(message.content).slice(0, 12000)}`,
             messages: [{ role: 'user', content: 'Create the spoken Hinglish explanation now.' }],
           });
           speechText = String(result.answer || '').trim();
@@ -508,7 +542,7 @@ function App() {
       const result = await requestChat({
         system: SYSTEM,
         context: textbookContext,
-        messages: nextMessages.slice(-14),
+        messages: nextMessages.slice(-14).map((message) => ({ ...message, content: message.role === 'assistant' ? cleanTeachingAnswer(message.content) : message.content })),
       });
       const assistantMessage = {
         id: createId(),
@@ -557,7 +591,7 @@ function App() {
       messageId: message.id,
       title: titleForNote(message.question, message.content),
       question: message.question || '',
-      answer: message.content,
+      answer: cleanTeachingAnswer(message.content),
       createdAt: new Date().toISOString(),
     };
     const updatedNotes = [note, ...notes];
@@ -597,7 +631,7 @@ function App() {
 
   function downloadPdf(message) {
     try {
-      downloadAnswerPdf({ answer: message.content, question: message.question });
+      downloadAnswerPdf({ answer: cleanTeachingAnswer(message.content), question: message.question });
     } catch {
       setError('Could not create the answer PDF. Please try again.');
     }
@@ -842,7 +876,7 @@ function App() {
             </div>
           ) : activeView === 'lesson' ? (
             <div className={`lesson-page ${fullScreenStudy ? 'lesson-page-full-screen' : ''}`}>
-              {fullScreenStudy && <div className="fullscreen-study-bar"><button className="fullscreen-exit-button" onClick={() => { setFullScreenStudy(false); setFullScreenMessageOpen(false); }}>↙ Exit full screen</button><span className="fullscreen-lesson-label">{selectedSubject || activeLesson?.subject || 'JEE'} · Lesson</span><button className="fullscreen-voice-button" onClick={() => { setFullScreenMessageOpen(true); listen(); }} title="Interrupt the explanation and ask by voice">🎙 Ask by voice</button><button className="fullscreen-message-open-button" onClick={() => setFullScreenMessageOpen(true)}>✎ Message</button><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>}
+              {fullScreenStudy && <div className="fullscreen-study-bar"><button className="fullscreen-exit-button" onClick={() => { setFullScreenStudy(false); setFullScreenMessageOpen(false); }}>↙ Exit full screen</button><span className="fullscreen-lesson-label">{selectedSubject || activeLesson?.subject || 'JEE'} · Lesson</span>{activeSpeechId === latestTeacherMessage?.id && speechProgress.total > 1 && <label className="fullscreen-speech-progress" title="Rewind or jump through the teacher's explanation"><span>Teaching progress</span><input aria-label="Teaching progress; drag to rewind or jump" type="range" min="0" max={Math.max(0, speechProgress.total - 1)} step="1" value={Math.min(speechProgress.index, Math.max(0, speechProgress.total - 1))} onChange={(event) => seekSpeech(event.target.value)} /><small>{Math.min(speechProgress.index + 1, speechProgress.total)}/{speechProgress.total}</small></label>}<button className="fullscreen-teacher-play" onClick={() => { if (activeSpeechId === latestTeacherMessage?.id) { speechPaused ? resumeSpeech() : pauseSpeech(); } else if (latestTeacherMessage) playAnswer({ ...latestTeacherMessage, content: cleanTeachingAnswer(latestTeacherMessage.content) }); }} disabled={!latestTeacherMessage || speechLoadingId === latestTeacherMessage?.id}>{speechLoadingId === latestTeacherMessage?.id ? 'Preparing…' : activeSpeechId === latestTeacherMessage?.id ? (speechPaused ? '▶ Resume' : 'Ⅱ Pause teacher') : '🔊 Teacher Explanation'}</button><button className="fullscreen-voice-button" onClick={() => { setFullScreenMessageOpen(true); listen(); }} title="Interrupt the explanation and ask by voice">🎙 Ask by voice</button><button className="fullscreen-message-open-button" onClick={() => setFullScreenMessageOpen(true)}>✎ Message</button><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>}
               <div className="lesson-topline">
                 <button className="breadcrumb-button" onClick={openHome}>← Home</button><span>/</span><span>{selectedSubject || activeLesson?.subject || 'JEE Lesson'}</span>
                 <button className="new-lesson-inline" onClick={() => startNewLesson(selectedSubject)}>＋ New lesson</button>
@@ -868,6 +902,7 @@ function App() {
                   </select>
                 </label>
                 <span className="written-language-note">Text · {voiceLanguage === 'hinglish' ? 'Hinglish' : 'English'} voice</span>
+                {activeSpeechId === latestTeacherMessage?.id && speechProgress.total > 1 && <label className="speech-progress-control" title="Rewind or jump through the teacher's explanation"><span>Teaching progress</span><input aria-label="Teaching progress; drag to rewind or jump" type="range" min="0" max={Math.max(0, speechProgress.total - 1)} step="1" value={Math.min(speechProgress.index, Math.max(0, speechProgress.total - 1))} onChange={(event) => seekSpeech(event.target.value)} /><small>{Math.min(speechProgress.index + 1, speechProgress.total)} / {speechProgress.total}</small></label>}
               </div>
               <div className="lesson-scroll">
                 {messages.map((message) => {
@@ -920,7 +955,7 @@ function App() {
                     <button title="Close board (notes are retained)" onClick={() => { setBoardOpen(false); setBoardMaximized(false); }}>×</button>
                   </div>
                   <div className="floating-board-content">
-                    {boardContent.trim() ? <Markdown>{boardContent}</Markdown> : <div className="board-empty-state"><strong>Your board is ready</strong><p>When a diagram, equation or table will help, your teacher will ask you to open this board.</p></div>}
+                    {boardContent.trim() ? <Markdown>{boardContent}</Markdown> : <div className="board-empty-state"><strong>Your board is ready</strong><p>Your teacher will add a separate visual here when it helps. Board notes are kept separate from the written explanation.</p></div>}
                   </div>
                   <div className="board-resize-hint">Drag the title bar to move · Resize from the corner</div>
                 </section>

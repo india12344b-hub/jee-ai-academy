@@ -43,3 +43,12 @@ The whiteboard currently displays the latest teacher response as retained notes;
 - Improved contrast for the spoken-explanation controls and Save to My Notes actions in light and dark themes.
 - In full-screen focus mode, students can interrupt narration with **Ask by voice** or open the message composer using **Message**. Sending a message or starting voice dictation stops the current narration so the student can interact naturally.
 - Voice questions use browser speech recognition where supported; typed questions remain available as a fallback.
+
+
+## Interactive teacher playback and board separation (October 2026)
+- The lesson toolbar and full-screen focus bar both provide Teacher Explanation playback controls.
+- While narration is playing, the Teaching Progress slider jumps backward/forward by sentence-sized speech chunks. Browser speech synthesis does not expose precise audio seeking, so this is chunk-level rewind rather than millisecond-accurate scrubbing.
+- Follow-up prompts instruct the teacher to answer conversationally and clarify only the current doubt instead of regenerating the entire lesson.
+- Whiteboard content uses a separate `:::whiteboard ... :::` response payload. The app strips this from the main answer and renders it only in the optional board, preventing the board from automatically duplicating the written explanation.
+- The whiteboard storage key was versioned to avoid restoring legacy board content that previously duplicated the full lesson. New board notes remain in local browser storage when the board is minimized or closed.
+- The teacher controls board content; there are no student-facing pen, eraser, or marker tools.
