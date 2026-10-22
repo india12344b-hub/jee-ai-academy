@@ -3053,8 +3053,7 @@ input:focus-visible {
 
 .full-screen-study .question-marker,
 .full-screen-study .lesson-answer-label,
-.full-screen-study .lesson-answer .message-actions,
-.full-screen-study .lesson-error {
+.full-screen-study .lesson-answer .message-actions {
   display: none !important;
 }
 
@@ -3179,3 +3178,112 @@ input:focus-visible {
   }
 }
 .full-screen-study .lesson-empty-state { display: none !important; }
+
+/* UX refinement: home starts with messaging, with readable lesson controls. */
+.home-chat-welcome {
+  margin-bottom: 8px;
+}
+.home-chat-welcome h1 {
+  margin-bottom: 5px;
+}
+.home-chat-welcome p {
+  max-width: 720px;
+}
+.home-first-ask-panel {
+  margin-top: 10px;
+}
+
+/* Make lesson actions clearly readable in both themes. */
+.app .lesson-answer .message-action {
+  color: #29466d;
+  background: #f3f7fd;
+  border: 1px solid #cbd8e9;
+  font-size: 12px;
+  font-weight: 650;
+}
+.app .lesson-answer .message-action:hover:not(:disabled) {
+  color: #173b70;
+  background: #e7effc;
+  border-color: #9eb5d7;
+}
+.app .lesson-answer .message-action:disabled {
+  color: #17613e;
+  background: #e8f6ed;
+  border-color: #b6dec5;
+  opacity: 1;
+}
+.app[data-theme='dark'] .lesson-answer .message-action {
+  color: #e0eaff;
+  background: #1b2a42;
+  border-color: #425574;
+}
+.app[data-theme='dark'] .lesson-answer .message-action:hover:not(:disabled) {
+  color: #fff;
+  background: #263b5b;
+  border-color: #718bb5;
+}
+.app[data-theme='dark'] .lesson-answer .message-action:disabled {
+  color: #b8f0ce;
+  background: #173a30;
+  border-color: #326b55;
+}
+.compact-voice-language,
+.compact-voice-language span,
+.written-language-note {
+  color: #334a68;
+  font-size: 12px;
+  font-weight: 600;
+}
+.compact-voice-language select {
+  color: #203a5d;
+  background: #f6f8fc;
+  border-color: #c5d2e4;
+  font-size: 12px;
+  font-weight: 650;
+}
+.app[data-theme='dark'] .compact-voice-language,
+.app[data-theme='dark'] .compact-voice-language span,
+.app[data-theme='dark'] .written-language-note {
+  color: #d4e1f6;
+}
+.app[data-theme='dark'] .compact-voice-language select {
+  color: #f1f5ff;
+  background: #1b2a42;
+  border-color: #536987;
+}
+
+.fullscreen-voice-button,
+.fullscreen-message-open-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--paper);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.fullscreen-voice-button {
+  color: #fff;
+  background: #4358bf;
+  border-color: #6478e5;
+}
+.fullscreen-voice-button:hover,
+.fullscreen-message-open-button:hover {
+  filter: brightness(1.12);
+}
+.full-screen-study .fullscreen-study-bar {
+  flex-wrap: wrap;
+}
+@media (max-width: 700px) {
+  .fullscreen-voice-button,
+  .fullscreen-message-open-button {
+    min-height: 32px;
+    padding: 6px 7px;
+    font-size: 10px;
+  }
+}
+
+.full-screen-study .lesson-error { display: block !important; flex: 0 0 auto; width: min(100%, 1000px); margin: 4px auto; }

@@ -36,3 +36,10 @@ The whiteboard currently displays the latest teacher response as retained notes;
 - The message composer collapses to **Click to message your teacher** and expands on demand.
 - Use **Exit full screen** to return to the standard workspace.
 - The floating whiteboard remains available above the lesson and can be minimized, resized, maximized, or closed without clearing saved board notes.
+
+
+## Messaging-first and interactive lesson UX (October 2026)
+- Removed subject-selection cards from the home screen and removed the Learn / Subjects navigation entry. Students can start by messaging the teacher directly.
+- Improved contrast for the spoken-explanation controls and Save to My Notes actions in light and dark themes.
+- In full-screen focus mode, students can interrupt narration with **Ask by voice** or open the message composer using **Message**. Sending a message or starting voice dictation stops the current narration so the student can interact naturally.
+- Voice questions use browser speech recognition where supported; typed questions remain available as a fallback.

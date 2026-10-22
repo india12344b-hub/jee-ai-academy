@@ -24,11 +24,6 @@ const BOARD_STORAGE_KEY = 'jee-ai-academy-whiteboard-v1';
 function readSavedBoard() {
   try { return localStorage.getItem(BOARD_STORAGE_KEY) || ''; } catch { return ''; }
 }
-const SUBJECTS = [
-  { name: 'Physics', code: '01', topics: 'Mechanics · Electricity · Optics' },
-  { name: 'Chemistry', code: '02', topics: 'Physical · Organic · Inorganic' },
-  { name: 'Mathematics', code: '03', topics: 'Algebra · Calculus · Coordinate geometry' },
-];
 const speechMathCommands = [
   'frac',
   'sqrt',
@@ -590,10 +585,6 @@ function App() {
     setActiveView('lesson');
   }
 
-  function beginSubject(subject) {
-    startNewLesson(subject);
-  }
-
   function openHome() {
     stopSpeech();
     setActiveView('home');
@@ -674,7 +665,6 @@ function App() {
           </button>
           <nav className="primary-nav" aria-label="Main navigation">
             <button className={showHome ? 'active' : ''} onClick={openHome}><span>⌂</span> Home</button>
-            <button className={activeView === 'subjects' ? 'active' : ''} onClick={() => setActiveView('subjects')}><span>▦</span> Learn / Subjects</button>
             <button onClick={() => setNotesOpen(true)}><span>▤</span> My Notes <small>{notes.length}</small></button>
             <button className={activeView === 'pdf' ? 'active' : ''} onClick={() => setActiveView('pdf')}><span>▧</span> PDF Library</button>
             <button className={activeView === 'practice' ? 'active' : ''} onClick={() => setActiveView('practice')}><span>✳</span> Practice</button>
@@ -732,35 +722,16 @@ function App() {
         <main className="main-panel">
           {showHome ? (
             <div className="dashboard-content">
-              <div className="welcome-row">
+              <div className="welcome-row home-chat-welcome">
                 <div>
                   <div className="section-eyebrow">YOUR PERSONAL JEE CLASSROOM</div>
-                  <h1>What shall we master today?</h1>
-                  <p>Build understanding, one clear idea at a time.</p>
+                  <h1>Message your AI Teacher</h1>
+                  <p>Ask any JEE question, share a problem, or request a step-by-step explanation.</p>
                 </div>
-                <div className="study-streak"><span>✦</span><div><b>Made for JEE</b><small>Main · Advanced · You</small></div></div>
               </div>
-              <section className="subject-grid" aria-label="Choose a subject">
-                {SUBJECTS.map((subject) => (
-                  <button
-                    className={`subject-card subject-${subject.name.toLowerCase()} ${selectedSubject === subject.name ? 'selected' : ''}`}
-                    key={subject.name}
-                    onClick={() => {
-                      setSelectedSubject(subject.name);
-                      setActiveView('subjects');
-                    }}
-                  >
-                    <span className="subject-code">{subject.code} / JEE</span>
-                    <span className="subject-symbol">{subject.name === 'Physics' ? 'Φ' : subject.name === 'Chemistry' ? '⌬' : '∑'}</span>
-                    <strong>{subject.name}</strong>
-                    <small>{subject.topics}</small>
-                    <span className="subject-arrow">Explore ↗</span>
-                  </button>
-                ))}
-              </section>
-              <section className="ask-panel">
+              <section className="ask-panel home-first-ask-panel">
                 <div className="ask-panel-title">
-                  <div><span className="teacher-avatar">✦</span><div><h2>Ask your AI Teacher</h2><p>Get a clear, step-by-step explanation tailored to your level.</p></div></div>
+                  <div><span className="teacher-avatar">✦</span><div><h2>Start with a message</h2><p>Your teacher will explain one concept at a time. You can ask follow-up questions whenever you need.</p></div></div>
                   <span className="english-note">Written lessons in English</span>
                 </div>
                 <div className="ask-composer">
@@ -805,7 +776,7 @@ function App() {
                     </button>
                   ) : (
                     <button className="continue-card empty-continue" onClick={() => startNewLesson()}>
-                      <span className="continue-icon">✦</span><span className="continue-copy"><small>YOUR NEXT BREAKTHROUGH STARTS HERE</small><strong>Start your first lesson</strong><span>Choose a subject or ask a question <b>→</b></span></span>
+                      <span className="continue-icon">✦</span><span className="continue-copy"><small>YOUR NEXT BREAKTHROUGH STARTS HERE</small><strong>Start your first lesson</strong><span>Message your AI Teacher to begin <b>→</b></span></span>
                     </button>
                   )}
                 </section>
@@ -834,7 +805,7 @@ function App() {
             </div>
           ) : activeView === 'lesson' ? (
             <div className={`lesson-page ${fullScreenStudy ? 'lesson-page-full-screen' : ''}`}>
-              {fullScreenStudy && <div className="fullscreen-study-bar"><button className="fullscreen-exit-button" onClick={() => { setFullScreenStudy(false); setFullScreenMessageOpen(false); }}>↙ Exit full screen</button><span className="fullscreen-lesson-label">{selectedSubject || activeLesson?.subject || 'JEE'} · Lesson</span><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>}
+              {fullScreenStudy && <div className="fullscreen-study-bar"><button className="fullscreen-exit-button" onClick={() => { setFullScreenStudy(false); setFullScreenMessageOpen(false); }}>↙ Exit full screen</button><span className="fullscreen-lesson-label">{selectedSubject || activeLesson?.subject || 'JEE'} · Lesson</span><button className="fullscreen-voice-button" onClick={() => { setFullScreenMessageOpen(true); listen(); }} title="Interrupt the explanation and ask by voice">🎙 Ask by voice</button><button className="fullscreen-message-open-button" onClick={() => setFullScreenMessageOpen(true)}>✎ Message</button><button className="board-open-button" onClick={openBoard}>▤ Open whiteboard</button></div>}
               <div className="lesson-topline">
                 <button className="breadcrumb-button" onClick={openHome}>← Home</button><span>/</span><span>{selectedSubject || activeLesson?.subject || 'JEE Lesson'}</span>
                 <button className="new-lesson-inline" onClick={() => startNewLesson(selectedSubject)}>＋ New lesson</button>
@@ -935,9 +906,8 @@ function App() {
             </div>
           ) : (
             <div className="dashboard-content secondary-view">
-              <div className="welcome-row"><div><div className="section-eyebrow">JEE AI ACADEMY</div><h1>{activeView === 'subjects' ? 'Choose your subject' : activeView === 'recent' ? 'Recent lessons' : activeView === 'pdf' ? 'PDF Library' : activeView === 'practice' ? 'Practice with purpose' : 'Learning preferences'}</h1><p>{activeView === 'settings' ? 'Make your learning workspace feel right for you.' : 'A focused space to keep your preparation moving.'}</p></div></div>
-              {activeView === 'subjects' && <section className="subject-grid secondary-subject-grid">{SUBJECTS.map((subject) => <button className={`subject-card subject-${subject.name.toLowerCase()} ${selectedSubject === subject.name ? 'selected' : ''}`} key={subject.name} onClick={() => beginSubject(subject.name)}><span className="subject-code">{subject.code} / JEE</span><span className="subject-symbol">{subject.name === 'Physics' ? 'Φ' : subject.name === 'Chemistry' ? '⌬' : '∑'}</span><strong>{subject.name}</strong><small>{subject.topics}</small><span className="subject-arrow">Start a lesson ↗</span></button>)}</section>}
-              {activeView === 'recent' && <section className="dashboard-section full-section">{lessons.length ? lessons.map((lesson) => <button className="recent-lesson-row" key={lesson.id} onClick={() => openLesson(lesson)}><span className="recent-subject-icon">{lesson.subject === 'Physics' ? 'Φ' : lesson.subject === 'Chemistry' ? '⌬' : '∑'}</span><span><strong>{lesson.title}</strong><small>{lesson.subject} · {new Date(lesson.updatedAt).toLocaleString()}</small></span><b>Open lesson →</b></button>) : <p className="empty-copy">No lessons yet. Choose a subject or ask your AI Teacher to begin.</p>}</section>}
+              <div className="welcome-row"><div><div className="section-eyebrow">JEE AI ACADEMY</div><h1>{activeView === 'recent' ? 'Recent lessons' : activeView === 'pdf' ? 'PDF Library' : activeView === 'practice' ? 'Practice with purpose' : 'Learning preferences'}</h1><p>{activeView === 'settings' ? 'Make your learning workspace feel right for you.' : 'A focused space to keep your preparation moving.'}</p></div></div>
+              {activeView === 'recent' && <section className="dashboard-section full-section">{lessons.length ? lessons.map((lesson) => <button className="recent-lesson-row" key={lesson.id} onClick={() => openLesson(lesson)}><span className="recent-subject-icon">{lesson.subject === 'Physics' ? 'Φ' : lesson.subject === 'Chemistry' ? '⌬' : '∑'}</span><span><strong>{lesson.title}</strong><small>{lesson.subject} · {new Date(lesson.updatedAt).toLocaleString()}</small></span><b>Open lesson →</b></button>) : <p className="empty-copy">No lessons yet. Send your first message to the AI Teacher to begin.</p>}</section>}
               {activeView === 'pdf' && <section className="dashboard-section full-section pdf-library-card"><div className="library-icon">▧</div><div><h2>{pdf || 'Add a textbook or study guide'}</h2><p>{pdf ? `${pages.length} pages extracted. Your teacher can now reference the selected page in explanations.` : 'Upload a PDF to discuss its content with your AI Teacher. Text extraction happens in your browser.'}</p></div><button className="send-button" onClick={() => pdfInput.current?.click()} disabled={reading}>{reading ? 'Reading PDF…' : pdf ? 'Choose another PDF' : '＋ Upload a PDF'}</button>{pdf && <div className="library-page-control"><label htmlFor="library-page">Selected page</label><input id="library-page" type="number" min="1" max={pages.length} value={page} onChange={(event) => setPage(Math.max(1, Math.min(pages.length, Number(event.target.value) || 1)))} /><p className="preview">{pages[page - 1]?.slice(0, 900) || 'No extractable text on this page.'}</p></div>}</section>}
               {activeView === 'practice' && <section className="dashboard-section full-section practice-card"><div className="practice-mark">✳</div><h2>Turn practice into progress</h2><p>Ask for a JEE-level problem, a hint-first walkthrough, or a timed mini set on any topic.</p><button className="send-button" onClick={() => { setInput('Give me a JEE practice question with a guided solution on '); setActiveView('lesson'); }}>Create a practice lesson <span>→</span></button></section>}
               {activeView === 'settings' && <section className="dashboard-section full-section settings-card"><h2>Appearance</h2><p>Choose the theme for your learning workspace.</p><label className="voice-language"><span>Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="dark">Dark</option><option value="light">Light</option></select></label><h2 className="settings-subheading">Spoken lesson language</h2><p>Choose the language your teacher uses when you press Listen. Written answers always stay in English.</p><label className="voice-language"><span>Voice language</span><select value={voiceLanguage} onChange={(event) => { stopSpeech(); setVoiceLanguage(event.target.value); }}><option value="english">English</option><option value="hinglish">Hinglish</option></select></label></section>}
